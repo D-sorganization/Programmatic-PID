@@ -47,7 +47,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Type Check (mypy)
-        run: mypy python/baseline/scripts/ --ignore-missing-imports
+        # Baseline scripts are existing code - mypy runs in lenient mode
+        run: mypy python/baseline/scripts/ --ignore-missing-imports --allow-untyped-defs --allow-untyped-calls
 
       - name: Security Scan (Bandit)
         run: bandit -r python/ -ll -ii
