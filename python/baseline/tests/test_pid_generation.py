@@ -84,7 +84,9 @@ def test_spread_instrument_positions_separates_points():
 
 
 def test_orthogonal_control_route_uses_corridor_y():
-    route = mod.orthogonal_control_route((10.0, 30.0), (40.0, 45.0), route_index=1, spread=3.0, corridor_y=15.0)
+    route = mod.orthogonal_control_route(
+        (10.0, 30.0), (40.0, 45.0), route_index=1, spread=3.0, corridor_y=15.0
+    )
     y_values = [p[1] for p in route]
     assert min(y_values) <= 15.0
     assert route[0] == (10.0, 30.0)

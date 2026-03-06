@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["python/baseline/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -11,13 +11,13 @@ markers = [
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 110
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "C90"]
-ignore = ["D", "ANN"]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["D", "ANN", "C901", "E501"]
 
 [tool.black]
-line-length = 100
+line-length = 110
 target-version = ["py311"]

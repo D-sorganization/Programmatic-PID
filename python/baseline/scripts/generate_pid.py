@@ -75,7 +75,7 @@ PROFILE_PRESETS = {
 
 
 def load_spec(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -333,12 +333,7 @@ def wrap_text_lines(text, width):
 def rects_overlap(a, b, pad=0.0):
     ax1, ay1, ax2, ay2 = a
     bx1, by1, bx2, by2 = b
-    return not (
-        ax2 + pad <= bx1
-        or bx2 + pad <= ax1
-        or ay2 + pad <= by1
-        or by2 + pad <= ay1
-    )
+    return not (ax2 + pad <= bx1 or bx2 + pad <= ax1 or ay2 + pad <= by1 or by2 + pad <= ay1)
 
 
 def text_box(text, x, y, h, align="MIDDLE_CENTER"):
@@ -530,7 +525,9 @@ def add_burner_symbol(msp, x, y, w, h, layer):
 def add_bin_symbol(msp, x, y, w, h, layer):
     add_box(msp, x, y, w, h, layer)
     msp.add_line((x, y + h), (x + w, y + h), dxfattribs={"layer": layer})
-    msp.add_line((x + w * 0.1, y + h + h * 0.12), (x + w * 0.9, y + h + h * 0.12), dxfattribs={"layer": layer})
+    msp.add_line(
+        (x + w * 0.1, y + h + h * 0.12), (x + w * 0.9, y + h + h * 0.12), dxfattribs={"layer": layer}
+    )
 
 
 def draw_equipment_symbol(msp, eq, layer):
@@ -882,7 +879,15 @@ def add_equipment(msp, eq, text_h, text_layer, notes_layer, show_inline_notes=Fa
     if show_inline_notes:
         note_step = max(text_h * 1.2, 0.8)
         for i, note in enumerate(eq.get("notes", [])[:2]):
-            add_text(msp, f"- {note}", x, y - note_step * (i + 1), text_h * 0.62, layer=notes_layer, align="TOP_LEFT")
+            add_text(
+                msp,
+                f"- {note}",
+                x,
+                y - note_step * (i + 1),
+                text_h * 0.62,
+                layer=notes_layer,
+                align="TOP_LEFT",
+            )
 
 
 def add_instrument(
@@ -1119,8 +1124,7 @@ def add_notes(msp, spec, text_cfg, text_layer, notes_layer, layout_regions):
             design_notes.append(note)
 
     interlock_lines = [
-        f'{item.get("id", "")}: {item.get("trigger", "")}'
-        for item in spec.get("interlocks", [])[:5]
+        f'{item.get("id", "")}: {item.get("trigger", "")}' for item in spec.get("interlocks", [])[:5]
     ]
     equipment_note_lines = []
     for eq in spec.get("equipment", []):
@@ -1204,12 +1208,16 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
     instrument_layer = layer_name(layer_index, "INSTRUMENTS", "instruments", default="INSTRUMENTS")
     leader_layer = layer_name(layer_index, "LEADERS", default="LEADERS")
     arrow_size = to_float(spec.get("defaults", {}).get("arrow_size"), max(t["small_height"] * 1.2, 1.2))
-    bubble_radius = to_float(spec.get("defaults", {}).get("instrument_bubble_radius"), max(t["small_height"] * 0.9, 1.0))
+    bubble_radius = to_float(
+        spec.get("defaults", {}).get("instrument_bubble_radius"), max(t["small_height"] * 0.9, 1.0)
+    )
     stream_label_scale = layout_cfg["stream_label_scale"]
     stream_label_leaders = layout_cfg["stream_label_leaders"]
     instrument_spacing = bubble_radius * layout_cfg["instrument_spacing_factor"]
 
-    spec["instruments"] = spread_instrument_positions(spec.get("instruments", []), min_spacing=instrument_spacing)
+    spec["instruments"] = spread_instrument_positions(
+        spec.get("instruments", []), min_spacing=instrument_spacing
+    )
 
     label_placer = LabelPlacer()
     for eq in spec.get("equipment", []):
@@ -1222,7 +1230,14 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
         label_placer.reserve_rect((px, py, px + pw, py + ph))
 
     add_box(msp, x_min, y_min, x_max - x_min, y_max - y_min, notes_layer)
-    add_box(msp, eq_min_x - 2.0, eq_min_y - 2.0, (eq_max_x - eq_min_x) + 4.0, (eq_max_y - eq_min_y) + 4.0, notes_layer)
+    add_box(
+        msp,
+        eq_min_x - 2.0,
+        eq_min_y - 2.0,
+        (eq_max_x - eq_min_x) + 4.0,
+        (eq_max_y - eq_min_y) + 4.0,
+        notes_layer,
+    )
 
     add_title_block(msp, spec, t, text_layer, notes_layer, layout_regions["panels"]["title"])
 
@@ -1308,7 +1323,9 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
         msp,
         "Conceptual draft generated from YAML. Validate controls and safety details before design issue.",
         layout_regions["panels"]["title"][0] + 1.1,
-        layout_regions["panels"]["title"][1] + layout_regions["panels"]["title"][3] - max(t["small_height"] * 3.0, 3.0),
+        layout_regions["panels"]["title"][1]
+        + layout_regions["panels"]["title"][3]
+        - max(t["small_height"] * 3.0, 3.0),
         max(t["small_height"] * 0.95, 1.0),
         layer=notes_layer,
         align="TOP_LEFT",
@@ -1361,7 +1378,7 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
     )
     add_text(
         msp,
-        f'Generated from {Path(spec_path).name}',
+        f"Generated from {Path(spec_path).name}",
         x_min + margin,
         y_max - margin * 1.7,
         t["subtitle_height"],
@@ -1379,9 +1396,21 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
     col_measure = table_x + table_w * 0.06
     col_ctrl = table_x + table_w * 0.44
     col_final = table_x + table_w * 0.72
-    add_text(msp, "Measurement", col_measure, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT")
-    add_text(msp, "Controller/Logic", col_ctrl, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT")
-    add_text(msp, "Final Element", col_final, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT")
+    add_text(
+        msp, "Measurement", col_measure, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT"
+    )
+    add_text(
+        msp,
+        "Controller/Logic",
+        col_ctrl,
+        table_top - 1.3,
+        t["body_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+    add_text(
+        msp, "Final Element", col_final, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT"
+    )
     msp.add_line((col_ctrl - 2.0, table_y), (col_ctrl - 2.0, table_top), dxfattribs={"layer": notes_layer})
     msp.add_line((col_final - 2.0, table_y), (col_final - 2.0, table_top), dxfattribs={"layer": notes_layer})
 
@@ -1401,7 +1430,9 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
         add_text(msp, loop_tag, col_ctrl, y, t["small_height"], layer=text_layer, align="TOP_LEFT")
         add_text(msp, final, col_final, y, t["small_height"], layer=text_layer, align="TOP_LEFT")
         if desc:
-            add_text(msp, desc, col_ctrl, y - 1.9, t["small_height"] * 0.9, layer=text_layer, align="TOP_LEFT")
+            add_text(
+                msp, desc, col_ctrl, y - 1.9, t["small_height"] * 0.9, layer=text_layer, align="TOP_LEFT"
+            )
 
         add_arrow(msp, (col_measure + 8.5, y - 0.5), (col_ctrl - 3.2, y - 0.5), control_layer, arrow_size=1.0)
         add_arrow(msp, (col_ctrl + 9.2, y - 0.5), (col_final - 3.2, y - 0.5), control_layer, arrow_size=1.0)
@@ -1422,7 +1453,9 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
     lower_h = table_y - lower_y - margin
     left_w = table_w * 0.58
     right_w = table_w - left_w - margin
-    interlock_lines = [f'{i.get("id", "")}: {i.get("trigger", "")} -> {i.get("action", "")}' for i in interlocks]
+    interlock_lines = [
+        f'{i.get("id", "")}: {i.get("trigger", "")} -> {i.get("action", "")}' for i in interlocks
+    ]
     add_text_panel(
         msp,
         table_x,
@@ -1489,7 +1522,9 @@ def generate(
             target_svg = derive_related_path(svg_path, "controls")
         else:
             target_svg = None
-        generate_controls_sheet(spec_path, controls_out, target_svg, profile=profile, prepared_spec=prepared_spec)
+        generate_controls_sheet(
+            spec_path, controls_out, target_svg, profile=profile, prepared_spec=prepared_spec
+        )
 
 
 def main():

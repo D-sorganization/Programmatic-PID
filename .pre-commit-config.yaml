@@ -18,7 +18,8 @@ repos:
     rev: v0.14.10
     hooks:
       - id: ruff
-        args: ["--fix", "--select", "E,F,W,I,B,UP", "--ignore", "D"]
+        args:
+          ["--fix", "--select", "E,F,W,I,B,UP", "--ignore", "D,ANN,C901,E501"]
 
   # Type checker
   - repo: https://github.com/pre-commit/mirrors-mypy
