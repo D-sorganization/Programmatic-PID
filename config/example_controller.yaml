@@ -1,0 +1,22 @@
+# Example PID configuration file
+# Used by scripts/run_simulation.py
+
+controller:
+  name: "Temperature Controller"
+  gains:
+    kp: 2.0
+    ki: 0.5
+    kd: 0.1
+  sample_period_s: 0.01
+  output_limits:
+    min: 0.0 # e.g. 0% heater power
+    max: 100.0 # e.g. 100% heater power
+
+simulation:
+  plant_type: "first_order"
+  plant:
+    time_constant: 5.0 # seconds
+    gain: 1.0
+  setpoint: 75.0 # degrees C
+  duration: 60.0 # seconds
+  initial_state: 20.0 # ambient temperature

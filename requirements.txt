@@ -1,0 +1,19 @@
+# Core scientific computing
+numpy>=2.0.1
+scipy>=1.13.1
+matplotlib>=3.9.0
+sympy>=1.12
+
+# Control systems (python-control)
+control>=0.10.0
+
+# Testing & Quality Assurance
+pytest>=8.2.0
+pytest-cov>=5.0.0
+ruff
+mypy
+types-PyYAML
+types-requests
+
+# Data formats & configuration
+pyyaml>=6.0.1
