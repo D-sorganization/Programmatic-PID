@@ -8,7 +8,6 @@ import pytest
 
 from python.pid.controller import PIDConfig, PIDController
 from python.simulation.runner import (
-    SimulationResult,
     SimulationRunner,
     first_order_plant,
     second_order_plant,

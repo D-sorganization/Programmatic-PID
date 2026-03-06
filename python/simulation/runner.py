@@ -6,12 +6,12 @@ Provides a generic plant model interface and a time-domain simulation runner.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 
-from python.pid.controller import PIDController, PIDConfig
+from python.pid.controller import PIDController
 
 logger = logging.getLogger(__name__)
 

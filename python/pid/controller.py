@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -175,9 +174,9 @@ class PIDController:
 
     def set_gains(
         self,
-        kp: Optional[float] = None,
-        ki: Optional[float] = None,
-        kd: Optional[float] = None,
+        kp: float | None = None,
+        ki: float | None = None,
+        kd: float | None = None,
     ) -> None:
         """Update gains at runtime (bumpless — does not reset integral).
 
