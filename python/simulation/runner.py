@@ -82,9 +82,7 @@ class SimulationResult:
         return float(self.time[last_outside + 1])
 
 
-def first_order_plant(
-    time_constant: float, gain: float = 1.0, dead_time: float = 0.0
-) -> PlantFn:
+def first_order_plant(time_constant: float, gain: float = 1.0, dead_time: float = 0.0) -> PlantFn:
     """Create a first-order plant model: G(s) = K / (tau*s + 1) * e^(-L*s).
 
     Args:
@@ -146,10 +144,12 @@ def second_order_plant(
         x = _state[0]
         # dx1/dt = x2
         # dx2/dt = -wn^2*x1 - 2*zeta*wn*x2 + K*wn^2*u
-        dx = np.array([
-            x[1],
-            -wn**2 * x[0] - 2 * zeta * wn * x[1] + gain * wn**2 * u,
-        ])
+        dx = np.array(
+            [
+                x[1],
+                -(wn**2) * x[0] - 2 * zeta * wn * x[1] + gain * wn**2 * u,
+            ]
+        )
         _state[0] = x + dx * dt
         return float(_state[0][0]), float(_state[0][0])
 
@@ -230,9 +230,12 @@ class SimulationRunner:
         logger.info(
             "Simulation complete: %.1f s, SSE=%.4f, Overshoot=%.1f%%",
             self.duration,
-            np.mean(np.abs(error_arr[-max(1, n_steps // 10):])),
-            max(0.0, (float(np.max(pv_arr)) - setpoint) / abs(setpoint) * 100.0)
-            if abs(setpoint) > 1e-10 else 0.0,
+            np.mean(np.abs(error_arr[-max(1, n_steps // 10) :])),
+            (
+                max(0.0, (float(np.max(pv_arr)) - setpoint) / abs(setpoint) * 100.0)
+                if abs(setpoint) > 1e-10
+                else 0.0
+            ),
         )
 
         return SimulationResult(
