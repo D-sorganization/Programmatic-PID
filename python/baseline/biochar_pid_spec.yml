@@ -1,0 +1,608 @@
+project:
+  id: BIOCHAR-PID-001
+  title: Biochar Vertical Retort Pilot
+  subtitle: Low-positive-pressure retort with controlled vent path, upstream dryer, and sealed char cooling
+  revision: B
+  author: Dieter
+  company: InEnTec
+  date: 2026-03-06
+  units:
+    length: ft
+    flow_mass: kg/h
+    temperature: C
+    pressure: psig
+  drawing:
+    paper:
+      width: 17
+      height: 11
+      units: inch
+    modelspace_extent:
+      x_min: 0
+      y_min: 0
+      x_max: 320
+      y_max: 220
+    text_height: 2.1
+    layout:
+      style: clean
+      show_inline_equipment_notes: false
+      show_instrument_suffix: false
+      show_control_tags_on_lines: false
+      gap: 8
+      right_panel_width: 90
+      bottom_panel_height: 36
+      title_block_height: 11
+      panel_text_chars: 44
+    title_block:
+      x: 5
+      y: 5
+      width: 230
+      height: 20
+      fields:
+        - {label: Project, value: BIOCHAR-PID-001}
+        - {label: Title, value: Biochar Vertical Retort Pilot}
+        - {label: Rev, value: B}
+        - {label: Date, value: 2026-03-06}
+        - {label: Author, value: Dieter}
+        - {label: Company, value: InEnTec}
+
+layers:
+  equipment: {color: 7, linetype: CONTINUOUS}
+  vessels: {color: 30, linetype: CONTINUOUS}
+  instruments: {color: 2, linetype: CONTINUOUS}
+  process_lines: {color: 5, linetype: CONTINUOUS}
+  utility_lines: {color: 4, linetype: DASHED}
+  control_lines: {color: 1, linetype: DASHDOT}
+  annotations: {color: 3, linetype: CONTINUOUS}
+  titleblock: {color: 8, linetype: CONTINUOUS}
+  hidden: {color: 9, linetype: DASHED}
+
+defaults:
+  tag_prefixes:
+    vessel: V
+    dryer: DR
+    burner: BR
+    fan: FN
+    hopper: HP
+    auger: AG
+    valve_rotary: RV
+    bin: BN
+  instrument_bubble_radius: 1.6
+  nozzle_stub: 2.0
+  arrow_size: 1.4
+  control_line_offset: 1.5
+  line_gap: 0.8
+
+assumptions:
+  feed:
+    wet_biomass_rate_kg_h: 1000
+    moisture_wtfrac: 0.30
+  dryer:
+    target_moisture_wtfrac: 0.20
+    assumed_thermal_efficiency: 0.65
+  reactor:
+    dry_char_yield_fraction_of_dry_feed: 0.42
+    char_product_moisture_wtfrac: 0.02
+    reactor_pressure_setpoint_psig: 0.5
+    reactor_pressure_operating_range_psig: [0.2, 1.0]
+    temperature_targets_C:
+      upper_zone: 150
+      mid_zone: 500
+      lower_zone: 450
+  utilities:
+    cooling_water_deltaT_C: 12
+    startup_fuel: propane
+
+pressure_control:
+  mode: positive
+  normal_operating_pressure_psig: 0.5
+  allowable_range_psig: [0.2, 1.0]
+  independent_relief_required: true
+  notes:
+    - Normal rotating equipment is not the only overpressure path.
+    - Provide independent vent or relief protection.
+
+equipment:
+  - id: HP-101
+    type: hopper
+    tag: HP-101
+    name: Wet Biomass Hopper
+    x: 15
+    y: 118
+    width: 26
+    height: 18
+    layer: equipment
+    notes:
+      - Steep walls
+      - External knocker only
+      - No routine ambient air pulsing into hot zone
+
+  - id: DR-101
+    type: dryer
+    tag: DR-101
+    name: Hot Gas Feed Dryer
+    x: 55
+    y: 118
+    width: 34
+    height: 18
+    layer: equipment
+    notes:
+      - Use recovered hot oxidizer exhaust
+      - Target feed moisture 20 wt%
+
+  - id: RV-101
+    type: rotary_valve
+    tag: RV-101
+    name: Top Rotary Airlock
+    x: 23
+    y: 101
+    width: 10
+    height: 6
+    layer: equipment
+
+  - id: V-101
+    type: vessel
+    subtype: vertical_retort
+    tag: V-101
+    name: Closed Vertical Retort
+    x: 95
+    y: 52
+    width: 28
+    height: 68
+    layer: vessels
+    zones:
+      - {name: Zone 1 Drying/Preheat, y_frac: 0.72}
+      - {name: Zone 2 Active Pyrolysis, y_frac: 0.48}
+      - {name: Zone 3 Char Hold-Up, y_frac: 0.22}
+    notes:
+      - Closed top
+      - Slight positive pressure control
+      - Jacketed / external heat
+
+  - id: BR-101
+    type: combustor
+    tag: BR-101
+    name: External Combustor / Thermal Oxidizer
+    x: 140
+    y: 60
+    width: 34
+    height: 56
+    layer: equipment
+    notes:
+      - Burn raw pyrolysis gas hot
+      - Maintain clean oxidation
+      - Provide reactor and dryer heat
+
+  - id: BR-102
+    type: burner
+    tag: BR-102
+    name: Startup Burner
+    x: 185
+    y: 90
+    width: 18
+    height: 12
+    layer: equipment
+
+  - id: FN-101
+    type: fan
+    tag: FN-101
+    name: Process Air Blower / Backpressure Trim
+    x: 184
+    y: 64
+    width: 20
+    height: 10
+    layer: equipment
+    notes:
+      - Maintains PIC-101 setpoint
+
+  - id: RV-102
+    type: rotary_valve
+    tag: RV-102
+    name: Bottom Rotary Airlock
+    x: 104
+    y: 42
+    width: 10
+    height: 6
+    layer: equipment
+
+  - id: AG-101
+    type: auger
+    tag: AG-101
+    name: Water-Cooled Sealed Char Auger
+    x: 74
+    y: 22
+    width: 70
+    height: 10
+    layer: equipment
+    notes:
+      - No cooling air injection
+      - Enclosed screw
+      - Discharge only when safe
+
+  - id: BN-101
+    type: bin
+    tag: BN-101
+    name: Sealed Char Bin
+    x: 95
+    y: 6
+    width: 28
+    height: 12
+    layer: equipment
+
+  - id: FL-101
+    type: optional_train
+    tag: FL-101
+    name: Optional Site Flare / Cleanup Train
+    x: 186
+    y: 122
+    width: 38
+    height: 14
+    layer: hidden
+    notes:
+      - Atomizing quench
+      - Baghouse
+      - Wet scrubber
+      - Roots blower
+      - Flare
+
+streams:
+  - id: S-001
+    name: Wet Biomass Feed
+    layer: process_lines
+    from: {equipment: HP-101, side: right, offset: 0.0}
+    to: {equipment: DR-101, side: left, offset: 0.0}
+    label:
+      text: Wet feed 1000 kg/h @ 30 wt% moisture
+      x: 48
+      y: 129
+
+  - id: S-002
+    name: Dried Biomass
+    layer: process_lines
+    from: {equipment: DR-101, side: right, offset: 0.0}
+    to: {equipment: V-101, side: top, offset: -30.0}
+    waypoints:
+      - [92, 127]
+      - [92, 104]
+      - [109, 104]
+    label:
+      text: Dried feed ~875 kg/h @ 20 wt% moisture
+      x: 90
+      y: 108
+
+  - id: S-003
+    name: Reactor Offgas
+    layer: process_lines
+    from: {equipment: V-101, side: right, offset: 8.0}
+    to: {equipment: BR-101, side: left, offset: 8.0}
+    label:
+      text: Raw pyrolysis gas
+      x: 132
+      y: 100
+
+  - id: S-004
+    name: Hot Exhaust To Dryer
+    layer: utility_lines
+    from: {equipment: BR-101, side: top, offset: -8.0}
+    to: {equipment: DR-101, side: bottom, offset: 0.0}
+    waypoints:
+      - [158, 124]
+      - [72, 124]
+      - [72, 118]
+    label:
+      text: Recovered hot exhaust
+      x: 112
+      y: 126
+
+  - id: S-005
+    name: Hot Exhaust To Optional Cleanup
+    layer: utility_lines
+    from: {equipment: BR-101, side: top, offset: 8.0}
+    to: {equipment: FL-101, side: left, offset: 0.0}
+    waypoints:
+      - [166, 124]
+    label:
+      text: To stack / flare / optional cleanup
+      x: 187
+      y: 126
+
+  - id: S-006
+    name: Startup Fuel
+    layer: utility_lines
+    from: {equipment: BR-102, side: left, offset: 0.0}
+    to: {equipment: BR-101, side: right, offset: 0.0}
+    label:
+      text: Propane startup fuel
+      x: 180
+      y: 97
+
+  - id: S-007
+    name: Hot Char
+    layer: process_lines
+    from: {equipment: V-101, side: bottom, offset: 0.0}
+    to: {equipment: AG-101, side: top, offset: 0.0}
+    waypoints:
+      - [109, 45]
+      - [109, 32]
+    label:
+      text: Hot char to cooled auger
+      x: 116
+      y: 39
+
+  - id: S-008
+    name: Biochar Product
+    layer: process_lines
+    from: {equipment: AG-101, side: bottom, offset: 0.0}
+    to: {equipment: BN-101, side: top, offset: 0.0}
+    label:
+      text: Biochar product 300 kg/h wet
+      x: 126
+      y: 16
+
+  - id: S-009
+    name: Cooling Water Supply
+    layer: utility_lines
+    from: {point: [55, 26]}
+    to: {equipment: AG-101, side: left, offset: 0.0}
+    label:
+      text: Cooling water in
+      x: 63
+      y: 28
+
+  - id: S-010
+    name: Cooling Water Return
+    layer: utility_lines
+    from: {equipment: AG-101, side: right, offset: 0.0}
+    to: {point: [160, 26]}
+    label:
+      text: Cooling water out
+      x: 149
+      y: 28
+
+instruments:
+  - id: LT-101
+    type: level_switch_high
+    tag: LT-101
+    service: High hopper level
+    x: 10
+    y: 132
+    attach_to: HP-101
+    layer: instruments
+
+  - id: LT-102
+    type: level_switch_low
+    tag: LT-102
+    service: Low hopper level
+    x: 10
+    y: 122
+    attach_to: HP-101
+    layer: instruments
+
+  - id: TT-111
+    type: temperature_transmitter
+    tag: TT-111
+    service: Dryer inlet gas temperature
+    x: 58
+    y: 112
+    attach_to: DR-101
+    layer: instruments
+
+  - id: TT-112
+    type: temperature_transmitter
+    tag: TT-112
+    service: Dryer outlet gas temperature
+    x: 86
+    y: 112
+    attach_to: DR-101
+    layer: instruments
+
+  - id: PT-101
+    type: pressure_transmitter
+    tag: PT-101
+    service: Reactor pressure
+    x: 89
+    y: 110
+    attach_to: V-101
+    layer: instruments
+
+  - id: TT-102
+    type: temperature_transmitter
+    tag: TT-102
+    service: Reactor upper zone temperature
+    x: 127
+    y: 106
+    attach_to: V-101
+    layer: instruments
+
+  - id: TT-103
+    type: temperature_transmitter
+    tag: TT-103
+    service: Reactor mid-zone temperature
+    x: 127
+    y: 88
+    attach_to: V-101
+    layer: instruments
+
+  - id: TT-104
+    type: temperature_transmitter
+    tag: TT-104
+    service: Reactor lower zone temperature
+    x: 127
+    y: 68
+    attach_to: V-101
+    layer: instruments
+
+  - id: TT-109
+    type: temperature_transmitter
+    tag: TT-109
+    service: Raw gas temperature
+    x: 132
+    y: 106
+    attach_to_stream: S-003
+    layer: instruments
+
+  - id: PT-102
+    type: pressure_transmitter
+    tag: PT-102
+    service: Raw gas pressure
+    x: 132
+    y: 94
+    attach_to_stream: S-003
+    layer: instruments
+
+  - id: TT-110
+    type: temperature_transmitter
+    tag: TT-110
+    service: Combustor temperature
+    x: 157
+    y: 88
+    attach_to: BR-101
+    layer: instruments
+
+  - id: AO-101
+    type: oxygen_analyzer
+    tag: O2-101
+    service: Oxidizer exhaust oxygen
+    x: 157
+    y: 76
+    attach_to: BR-101
+    layer: instruments
+
+  - id: FS-101
+    type: flow_switch
+    tag: FS-101
+    service: Cooling water flow switch
+    x: 70
+    y: 28
+    attach_to_stream: S-009
+    layer: instruments
+
+  - id: TT-107
+    type: temperature_transmitter
+    tag: TT-107
+    service: Cooling water inlet temperature
+    x: 80
+    y: 28
+    attach_to_stream: S-009
+    layer: instruments
+
+  - id: TT-108
+    type: temperature_transmitter
+    tag: TT-108
+    service: Cooling water outlet temperature
+    x: 138
+    y: 28
+    attach_to_stream: S-010
+    layer: instruments
+
+  - id: TT-105
+    type: temperature_transmitter
+    tag: TT-105
+    service: Hot char inlet temperature
+    x: 116
+    y: 34
+    attach_to: AG-101
+    layer: instruments
+
+  - id: TT-106
+    type: temperature_transmitter
+    tag: TT-106
+    service: Cooled char outlet temperature
+    x: 128
+    y: 18
+    attach_to_stream: S-008
+    layer: instruments
+
+  - id: GAS-101
+    type: gas_detector
+    tag: CO-101
+    service: Area CO detector
+    x: 176
+    y: 54
+    attach_to: BR-101
+    layer: instruments
+
+  - id: GAS-102
+    type: gas_detector
+    tag: LEL-101
+    service: Area combustible gas detector
+    x: 176
+    y: 46
+    attach_to: BR-101
+    layer: instruments
+
+control_loops:
+  - id: PIC-101
+    tag: PIC-101
+    description: Maintain retort at slight positive pressure
+    measurement: PT-101
+    final_element: FN-101
+    line_layer: control_lines
+    note: Setpoint about +0.5 psig with stable controlled venting
+
+  - id: TIC-103
+    tag: TIC-103
+    description: Maintain reactor mid-zone temperature
+    measurement: TT-103
+    final_element: BR-101
+    line_layer: control_lines
+    note: Manipulate oxidizer duty / raw gas combustion rate
+
+  - id: TIC-111
+    tag: TIC-111
+    description: Dryer inlet temperature trim
+    measurement: TT-111
+    final_element: DR-101
+    line_layer: control_lines
+    note: Use hot-gas bypass or dampers
+
+  - id: TSH-106
+    tag: TSH-106
+    description: High char outlet temperature shutdown permissive
+    measurement: TT-106
+    final_element: AG-101
+    line_layer: control_lines
+    note: Stop discharge to bin if too hot
+
+  - id: FSL-101
+    tag: FSL-101
+    description: Loss of cooling water flow trip
+    measurement: FS-101
+    final_element: AG-101
+    line_layer: control_lines
+    note: Stop feed and maintain safe cooldown
+
+interlocks:
+  - id: I-001
+    trigger: PT-101 high positive pressure
+    action: Stop feed RV-101, maintain burnout path, alarm operator
+  - id: I-002
+    trigger: Burner flame failure at BR-102
+    action: Isolate startup fuel and alarm
+  - id: I-003
+    trigger: FS-101 no flow
+    action: Stop feed, keep cooling permissive logic active, alarm
+  - id: I-004
+    trigger: TT-106 high-high
+    action: Stop transfer to BN-101 and alarm
+  - id: I-005
+    trigger: RV-101 or RV-102 overload
+    action: Stop upstream feed and alarm
+  - id: I-006
+    trigger: CO-101 alarm
+    action: Controlled shutdown and area alarm
+
+annotations:
+  notes_panel:
+    x: 150
+    y: 10
+    width: 78
+    height: 34
+    title: Key Notes
+    bullets:
+      - Closed-top retort with controlled positive pressure
+      - Dryer upstream of reactor feed
+      - Independent relief and dedicated vent path required
+      - No routine ambient-air pulse into hot solids
+      - No cooling air under hot char valve
+      - Metered process air and stable pressure control
+      - Blower path is operational, not the sole pressure protection path

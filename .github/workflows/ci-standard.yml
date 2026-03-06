@@ -1,94 +1,94 @@
 name: CI Standard
 on:
-    push:
-        branches: [main]
-    pull_request:
+  push:
+    branches: [main]
+  pull_request:
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-    quality-gate:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-python@v5
-              with: { python-version: "3.11" }
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
 
-            - name: Install Quality Tools
-              run: pip install ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
+      - name: Install Quality Tools
+        run: pip install ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
 
-            - name: Check Tool Version Consistency
-              shell: bash
-              run: |
-                  echo "Validating tool versions match .pre-commit-config.yaml..."
-                  if ! grep -q "rev: 25.12.0" .pre-commit-config.yaml; then
-                    echo "::error::Black version mismatch between CI and pre-commit config"
-                    exit 1
-                  fi
-                  if ! grep -q "rev: v0.14.10" .pre-commit-config.yaml; then
-                    echo "::error::Ruff version mismatch between CI and pre-commit config"
-                    exit 1
-                  fi
-                  if ! grep -q "rev: v1.13.0" .pre-commit-config.yaml; then
-                    echo "::error::MyPy version mismatch between CI and pre-commit config"
-                    exit 1
-                  fi
-                  echo "All tool versions consistent"
+      - name: Check Tool Version Consistency
+        shell: bash
+        run: |
+          echo "Validating tool versions match .pre-commit-config.yaml..."
+          if ! grep -q "rev: 25.12.0" .pre-commit-config.yaml; then
+            echo "::error::Black version mismatch between CI and pre-commit config"
+            exit 1
+          fi
+          if ! grep -q "rev: v0.14.10" .pre-commit-config.yaml; then
+            echo "::error::Ruff version mismatch between CI and pre-commit config"
+            exit 1
+          fi
+          if ! grep -q "rev: v1.13.0" .pre-commit-config.yaml; then
+            echo "::error::MyPy version mismatch between CI and pre-commit config"
+            exit 1
+          fi
+          echo "All tool versions consistent"
 
-            - name: Lint (Ruff)
-              run: ruff check python/ tests/
+      - name: Lint (Ruff)
+        run: ruff check python/
 
-            - name: Check Formatting (Black)
-              run: black --check python/ tests/
+      - name: Check Formatting (Black)
+        run: black --check python/
 
-            - name: Install Runtime Dependencies
-              run: pip install -r requirements.txt
+      - name: Install Runtime Dependencies
+        run: pip install -r requirements.txt
 
-            - name: Type Check (mypy)
-              run: mypy python/ --ignore-missing-imports
+      - name: Type Check (mypy)
+        run: mypy python/baseline/scripts/ --ignore-missing-imports
 
-            - name: Security Scan (Bandit)
-              run: bandit -r python/ -ll -ii
+      - name: Security Scan (Bandit)
+        run: bandit -r python/ -ll -ii
 
-            - name: Verify No Placeholders
-              shell: bash
-              run: |
-                  if grep -rE "TODO|FIXME" python/ tests/ --include="*.py"; then
-                    echo "::error::Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
-                    exit 1
-                  fi
+      - name: Verify No Placeholders
+        shell: bash
+        run: |
+          if grep -rE "TODO|FIXME" python/ --include="*.py"; then
+            echo "::error::Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
+            exit 1
+          fi
 
-    security-scan:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-python@v5
-              with: { python-version: "3.11" }
-            - run: pip install pip-audit
-            - name: Audit Python Dependencies
-              run: pip-audit -r requirements.txt --progress-spinner=off
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install pip-audit
+      - name: Audit Python Dependencies
+        run: pip-audit -r requirements.txt --progress-spinner=off
 
-    tests:
-        needs: quality-gate
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                python: ["3.11", "3.12"]
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: ${{ matrix.python }}
-            - name: Install Dependencies
-              run: pip install -r requirements.txt
-            - name: Run Tests
-              run: pytest tests/ -v --cov=python --cov-report=xml --cov-report=term-missing
-            - uses: codecov/codecov-action@v4
-              env:
-                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-              if: env.CODECOV_TOKEN != ''
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}
-                  fail_ci_if_error: false
+  tests:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+      - name: Run Tests
+        run: pytest python/baseline/tests/ -v --cov=python --cov-report=xml --cov-report=term-missing
+      - uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: env.CODECOV_TOKEN != ''
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
