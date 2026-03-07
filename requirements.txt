@@ -1,6 +1,6 @@
 # P&ID Generation Dependencies
 # Core drawing engine
-ezdxf>=1.4.3
+ezdxf[draw]>=1.4.3
 
 # YAML spec parsing
 PyYAML>=6.0
