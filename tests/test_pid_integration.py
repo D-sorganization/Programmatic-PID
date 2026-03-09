@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "scripts" / "generate_pid.py"
-SPEC_PATH = ROOT / "biochar_pid_spec.yml"
+import programmatic_pid.generator as mod
 
-spec = importlib.util.spec_from_file_location("generate_pid", MODULE_PATH)
-mod = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(mod)
+ROOT = Path(__file__).resolve().parents[1]
+SPEC_PATH = ROOT / "examples" / "biochar" / "biochar_pid_spec.yml"
 
 
 def test_generate_two_sheet_outputs(tmp_path):

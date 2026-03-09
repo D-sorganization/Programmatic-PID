@@ -6,8 +6,16 @@ A Python framework for generating **P&ID (Piping & Instrumentation Diagrams)** p
 
 **Programmatic-PID** produces editable DXF drawings and SVG previews from a declarative YAML specification. The workflow is:
 
+```text
+YAML Spec → generate-pid → DXF (ezdxf) → LibreCAD / AutoCAD
 ```
-YAML Spec → generate_pid.py → DXF (ezdxf) → LibreCAD / AutoCAD
+
+## IDE Validation & Autocompletion
+
+To get real-time validation and autocompletion for your specification files, we provide a JSON schema. Add the following comment to the top of your YAML specification files (if you are using VS Code with the RedHat YAML extension):
+
+```yaml
+# yaml-language-server: $schema=../../schema/pid_spec.schema.json
 ```
 
 Key capabilities:
@@ -21,32 +29,36 @@ Key capabilities:
 
 ## Project Structure
 
-```
+```text
 Programmatic-PID/
-├── python/
-│   └── baseline/             # Core P&ID generation engine
-│       ├── scripts/
-│       │   └── generate_pid.py   # Main generator (YAML → DXF/SVG)
-│       ├── tests/
-│       │   ├── test_pid_generation.py
-│       │   └── test_pid_integration.py
-│       ├── biochar_pid_spec.yml  # Example biochar reactor P&ID spec
-│       ├── P&ID Open Workflow Setup.md
-│       └── requirements.txt
+├── src/
+│   └── programmatic_pid/     # Core P&ID generation engine
+├── tests/                    # Integration and unit tests
+├── schema/
+│   └── pid_spec.schema.json  # Autocompletion schema for YAML specs
+├── examples/                 # Example P&ID specifications
+│   └── biochar/
+│       └── biochar_pid_spec.yml
 ├── output/                   # Generated drawings (gitignored)
-├── docs/development/         # Engineering notes
-├── requirements.txt          # Fleet-level dependencies
+├── docs/                     # Engineering notes and design reviews
+├── pyproject.toml            # Project and dependencies definition
 └── .github/workflows/ci-standard.yml
 ```
 
 ## Quick Start
 
-```bash
-pip install -r python/baseline/requirements.txt
+It is recommended to use `pip` to install the package in editable mode:
 
+```bash
+pip install -e .
+```
+
+Generate a P&ID from a YAML spec using the provided CLI tool:
+
+```bash
 # Generate a P&ID from a YAML spec
-python python/baseline/scripts/generate_pid.py \
-  --spec python/baseline/biochar_pid_spec.yml \
+generate-pid \
+  --spec examples/biochar/biochar_pid_spec.yml \
   --out output/biochar_pid.dxf \
   --svg output/biochar_pid.svg \
   --sheet-set two \
@@ -56,7 +68,7 @@ python python/baseline/scripts/generate_pid.py \
 ### Output Profiles
 
 | Profile | Description |
-|---|---|
+| --- | --- |
 | `review` | Densest annotations — loop tags, inline equipment notes |
 | `presentation` | Clean default for review meetings |
 | `compact` | Tighter spacing for rapid iteration |
@@ -69,9 +81,10 @@ Each `--sheet-set two` run produces:
 
 ## YAML Spec Format
 
-The spec drives everything. Key top-level keys:
+The spec drives everything. Make sure to reference the schema at the top for autocompletion. Key top-level keys:
 
 ```yaml
+# yaml-language-server: $schema=schema/pid_spec.schema.json
 project:
   id: my-project
   title: My P&ID
@@ -105,7 +118,7 @@ control_loops:
 ## Running Tests
 
 ```bash
-pytest python/baseline/tests/ -v
+pytest tests/ -v
 ```
 
 ## Development Principles
