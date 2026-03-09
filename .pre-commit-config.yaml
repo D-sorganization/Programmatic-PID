@@ -28,7 +28,7 @@ repos:
       - id: mypy
         additional_dependencies: ["types-requests", "types-PyYAML"]
         args: [--config-file=mypy.ini]
-        files: ^(python|tests)/
+        files: ^(src|tests)/
 
   # YAML/JSON/Markdown formatter
   - repo: https://github.com/pre-commit/mirrors-prettier

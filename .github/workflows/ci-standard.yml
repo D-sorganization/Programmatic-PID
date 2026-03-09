@@ -38,10 +38,10 @@ jobs:
           echo "All tool versions consistent"
 
       - name: Lint (Ruff)
-        run: ruff check python/
+        run: ruff check src/ tests/
 
       - name: Check Formatting (Black)
-        run: black --check python/
+        run: black --check src/ tests/
 
       - name: Install Runtime Dependencies
         run: pip install -r requirements.txt
@@ -53,12 +53,12 @@ jobs:
         continue-on-error: true
 
       - name: Security Scan (Bandit)
-        run: bandit -r python/ -ll -ii
+        run: bandit -r src/ tests/ -ll -ii
 
       - name: Verify No Placeholders
         shell: bash
         run: |
-          if grep -rE "TODO|FIXME" python/ --include="*.py"; then
+          if grep -rE "TODO|FIXME" src/ tests/ --include="*.py"; then
             echo "::error::Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
             exit 1
           fi
@@ -85,9 +85,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        run: pip install -e .[test] || pip install -r requirements.txt
       - name: Run Tests
-        run: pytest python/baseline/tests/ -v --cov=python --cov-report=xml --cov-report=term-missing
+        run: pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
       - uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

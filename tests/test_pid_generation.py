@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import ezdxf
 
-ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "scripts" / "generate_pid.py"
+import programmatic_pid.generator as mod
 
-spec = importlib.util.spec_from_file_location("generate_pid", MODULE_PATH)
-mod = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(mod)
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def minimal_spec() -> dict:

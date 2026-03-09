@@ -1,5 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "programmatic-pid"
+version = "0.1.0"
+description = "A Python framework for generating P&ID from YAML specifications."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ezdxf[draw]>=1.4.3",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+generate-pid = "programmatic_pid.generator:main"
+
 [tool.pytest.ini_options]
-testpaths = ["python/baseline/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -17,6 +35,9 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["D", "ANN", "C901", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["programmatic_pid"]
 
 [tool.black]
 line-length = 110

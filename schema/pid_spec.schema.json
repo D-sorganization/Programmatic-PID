@@ -1,0 +1,359 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Programmatic PID Specification",
+    "type": "object",
+    "required": [
+        "project",
+        "equipment"
+    ],
+    "properties": {
+        "project": {
+            "type": "object",
+            "required": [
+                "id",
+                "title"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "document_title": {
+                    "type": "string"
+                },
+                "drawing": {
+                    "type": "object",
+                    "properties": {
+                        "text_height": {
+                            "type": "number"
+                        },
+                        "layout": {
+                            "type": "object",
+                            "properties": {
+                                "style": {
+                                    "type": "string",
+                                    "enum": [
+                                        "clean"
+                                    ]
+                                },
+                                "show_inline_equipment_notes": {
+                                    "type": "boolean"
+                                },
+                                "show_instrument_suffix": {
+                                    "type": "boolean"
+                                },
+                                "show_control_tags_on_lines": {
+                                    "type": "boolean"
+                                },
+                                "gap": {
+                                    "type": "number"
+                                },
+                                "right_panel_width": {
+                                    "type": "number"
+                                },
+                                "bottom_panel_height": {
+                                    "type": "number"
+                                },
+                                "title_block_height": {
+                                    "type": "number"
+                                },
+                                "panel_text_chars": {
+                                    "type": "integer"
+                                },
+                                "stream_label_scale": {
+                                    "type": "number"
+                                },
+                                "stream_label_leaders": {
+                                    "type": "boolean"
+                                },
+                                "instrument_spacing_factor": {
+                                    "type": "number"
+                                },
+                                "controls_row_height_scale": {
+                                    "type": "number"
+                                }
+                            }
+                        },
+                        "text": {
+                            "type": "object",
+                            "properties": {
+                                "title_height": {
+                                    "type": "number"
+                                },
+                                "subtitle_height": {
+                                    "type": "number"
+                                },
+                                "body_height": {
+                                    "type": "number"
+                                },
+                                "small_height": {
+                                    "type": "number"
+                                }
+                            }
+                        },
+                        "layers": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                    "color": {
+                                        "type": "integer"
+                                    },
+                                    "linetype": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "equipment": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "x",
+                    "y"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "subtype": {
+                        "type": "string"
+                    },
+                    "x": {
+                        "type": "number"
+                    },
+                    "y": {
+                        "type": "number"
+                    },
+                    "w": {
+                        "type": "number"
+                    },
+                    "h": {
+                        "type": "number"
+                    },
+                    "width": {
+                        "type": "number"
+                    },
+                    "height": {
+                        "type": "number"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "notes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "zones": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string"
+                                },
+                                "y_frac": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "instruments": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "x",
+                    "y"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tag": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "x": {
+                        "type": "number"
+                    },
+                    "y": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "streams": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "layer": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "object",
+                        "properties": {
+                            "equipment": {
+                                "type": "string"
+                            },
+                            "side": {
+                                "type": "string",
+                                "enum": [
+                                    "top",
+                                    "bottom",
+                                    "left",
+                                    "right"
+                                ]
+                            },
+                            "offset": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "to": {
+                        "type": "object",
+                        "properties": {
+                            "equipment": {
+                                "type": "string"
+                            },
+                            "side": {
+                                "type": "string",
+                                "enum": [
+                                    "top",
+                                    "bottom",
+                                    "left",
+                                    "right"
+                                ]
+                            },
+                            "offset": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "start": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "minItems": 2,
+                        "maxItems": 2
+                    },
+                    "end": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "minItems": 2,
+                        "maxItems": 2
+                    },
+                    "points": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "control_loops": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "measurement",
+                    "final_element"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "measurement": {
+                        "type": "string"
+                    },
+                    "final_element": {
+                        "type": "string"
+                    },
+                    "line_layer": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "panels": {
+            "type": "object",
+            "properties": {
+                "mass_balance": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "controls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "design_notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "safety_notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "layers": {
+            "type": "object"
+        },
+        "defaults": {
+            "type": "object",
+            "properties": {
+                "instrument_bubble_radius": {
+                    "type": "number"
+                },
+                "control_line_offset": {
+                    "type": "number"
+                }
+            }
+        }
+    }
+}
