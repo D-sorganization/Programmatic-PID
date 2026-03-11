@@ -214,7 +214,17 @@
                         "type": "string"
                     },
                     "label": {
-                        "type": "string"
+                        "oneOf": [
+                            {"type": "string"},
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"}
+                                }
+                            }
+                        ]
                     },
                     "layer": {
                         "type": "string"

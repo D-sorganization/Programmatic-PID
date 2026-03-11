@@ -7,7 +7,7 @@ name = "programmatic-pid"
 version = "0.1.0"
 description = "A Python framework for generating P&ID from YAML specifications."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "ezdxf[draw]>=1.4.3",
     "PyYAML>=6.0",
