@@ -1,4 +1,5 @@
 """Low-level DXF creation primitives: shapes, text, arrows, layers."""
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Numeric helpers
 # ---------------------------------------------------------------------------
 
+
 def to_float(value: Any, default: float = 0.0) -> float:
     """Convert *value* to float, returning *default* on failure."""
     try:
@@ -33,6 +35,7 @@ def clamp(value: float, lo: float, hi: float) -> float:
 # ---------------------------------------------------------------------------
 # Text utilities
 # ---------------------------------------------------------------------------
+
 
 def parse_alignment(align: Any) -> TextEntityAlignment:
     """Return a :class:`TextEntityAlignment` from a string or pass-through."""
@@ -60,6 +63,7 @@ def wrap_text_lines(text: str, width: int) -> list[str]:
 # ---------------------------------------------------------------------------
 # Bounding-box helpers
 # ---------------------------------------------------------------------------
+
 
 def text_box(
     text: str, x: float, y: float, h: float, align: str = "MIDDLE_CENTER"
@@ -110,6 +114,7 @@ def closest_point_on_rect(
 # Label collision avoidance
 # ---------------------------------------------------------------------------
 
+
 class LabelPlacer:
     """Tracks occupied rectangles and finds non-overlapping label positions."""
 
@@ -151,6 +156,7 @@ class LabelPlacer:
 # ---------------------------------------------------------------------------
 # Layer helpers
 # ---------------------------------------------------------------------------
+
 
 def ensure_layer(doc: Any, name: str, color: int = 7, linetype: str = "CONTINUOUS") -> None:
     """Create a DXF layer if it does not already exist."""
@@ -201,9 +207,15 @@ def layer_name(layer_index: dict[str, str], *candidates: str, default: str = "0"
 # DXF drawing primitives
 # ---------------------------------------------------------------------------
 
+
 def add_text(
-    msp: Any, text: str, x: float, y: float, h: float,
-    layer: str = "TEXT", align: str = "MIDDLE_CENTER",
+    msp: Any,
+    text: str,
+    x: float,
+    y: float,
+    h: float,
+    layer: str = "TEXT",
+    align: str = "MIDDLE_CENTER",
 ) -> Any:
     """Add a text entity to *msp*."""
     t = msp.add_text(str(text), dxfattribs={"height": max(to_float(h, 1.0), 0.1), "layer": layer})
@@ -213,7 +225,10 @@ def add_text(
 
 def add_text_panel(
     msp: Any,
-    x: float, y: float, w: float, h: float,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
     title: str,
     lines: list[str],
     text_h: float,
@@ -413,6 +428,7 @@ def add_poly_arrow(
 # Equipment geometry helpers
 # ---------------------------------------------------------------------------
 
+
 def equipment_dims(eq: dict[str, Any]) -> tuple[float, float]:
     """Return ``(width, height)`` of an equipment entry."""
     return to_float(eq.get("w", eq.get("width", 0.0))), to_float(eq.get("h", eq.get("height", 0.0)))
@@ -550,6 +566,7 @@ def spread_instrument_positions(
 # ---------------------------------------------------------------------------
 # Equipment and instrument rendering
 # ---------------------------------------------------------------------------
+
 
 def add_equipment(
     msp: Any,

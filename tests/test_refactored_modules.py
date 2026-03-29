@@ -3,6 +3,7 @@
 Covers: validator, dxf_builder, stream_router, control_loops, notes,
 and generator orchestration.
 """
+
 from __future__ import annotations
 
 import ezdxf
@@ -42,6 +43,7 @@ from programmatic_pid.validator import SpecValidationError, validate_spec
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _minimal_spec() -> dict:
     return {
         "project": {"id": "P-1", "title": "Test PID", "drawing": {"text_height": 2.0}},
@@ -68,6 +70,7 @@ def _minimal_spec() -> dict:
 
 
 # --- validator.py ---
+
 
 class TestValidateSpec:
     def test_rejects_none(self):
@@ -107,6 +110,7 @@ class TestValidateSpec:
 
 
 # --- dxf_builder.py ---
+
 
 class TestDxfBuilder:
     def test_to_float_normal(self):
@@ -196,6 +200,7 @@ class TestDxfBuilder:
 
     def test_parse_alignment_string(self):
         from ezdxf.enums import TextEntityAlignment
+
         assert parse_alignment("MIDDLE_CENTER") == TextEntityAlignment.MIDDLE_CENTER
         assert parse_alignment("TOP_LEFT") == TextEntityAlignment.TOP_LEFT
 
@@ -209,8 +214,10 @@ class TestDxfBuilder:
         placer = LabelPlacer()
         placer.reserve_rect((0, 0, 10, 10))
         x, y, align = placer.find_position(
-            "Label", (5, 5), 1.0,
-            [( 0, 0, "MIDDLE_CENTER"), (12, 0, "MIDDLE_LEFT")],
+            "Label",
+            (5, 5),
+            1.0,
+            [(0, 0, "MIDDLE_CENTER"), (12, 0, "MIDDLE_LEFT")],
         )
         # First position overlaps, second should be chosen
         assert align == "MIDDLE_LEFT"
@@ -222,6 +229,7 @@ class TestDxfBuilder:
 
 
 # --- stream_router.py ---
+
 
 class TestStreamRouter:
     def test_add_stream_with_vertices(self):
@@ -256,6 +264,7 @@ class TestStreamRouter:
 
 
 # --- control_loops.py ---
+
 
 class TestControlLoops:
     def test_orthogonal_route_basic(self):
@@ -308,6 +317,7 @@ class TestControlLoops:
 
 # --- notes.py ---
 
+
 class TestNotes:
     def test_get_mass_balance_defaults(self):
         spec = _minimal_spec()
@@ -327,6 +337,7 @@ class TestNotes:
 
 
 # --- generator.py (orchestration + config helpers) ---
+
 
 class TestGeneratorHelpers:
     def test_apply_profile_unknown_raises(self):

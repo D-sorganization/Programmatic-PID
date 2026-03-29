@@ -1,4 +1,5 @@
 """Specification validation for P&ID YAML specs."""
+
 from __future__ import annotations
 
 import logging

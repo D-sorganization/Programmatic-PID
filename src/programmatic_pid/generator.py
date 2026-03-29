@@ -5,6 +5,7 @@ This module is the public API surface.  It re-exports every symbol that
 previously lived here so that existing ``import programmatic_pid.generator as mod``
 continues to work without changes.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -133,6 +134,7 @@ PROFILE_PRESETS: dict[str, dict[str, Any]] = {
 # ---------------------------------------------------------------------------
 # Spec loading / config helpers
 # ---------------------------------------------------------------------------
+
 
 def load_spec(path: str | Path) -> dict[str, Any]:
     """Load a YAML specification file.
@@ -280,6 +282,7 @@ def prepare_spec(spec_path: str | Path, profile: str | None) -> dict[str, Any]:
 # Layout computation
 # ---------------------------------------------------------------------------
 
+
 def compute_layout_regions(spec: dict[str, Any]) -> dict[str, Any]:
     """Compute canvas, equipment-bbox, and panel positions."""
     layout_cfg = get_layout_config(spec)
@@ -351,6 +354,7 @@ def get_modelspace_extent(spec: dict[str, Any]) -> tuple[float, float, float, fl
 # Title block
 # ---------------------------------------------------------------------------
 
+
 def add_title_block(
     msp: Any,
     spec: dict[str, Any],
@@ -394,6 +398,7 @@ def add_title_block(
 # SVG export
 # ---------------------------------------------------------------------------
 
+
 def export_svg_from_dxf(
     spec: dict[str, Any],
     dxf_path: str | Path,
@@ -434,6 +439,7 @@ def export_svg_from_dxf(
 # ---------------------------------------------------------------------------
 # Sheet generation
 # ---------------------------------------------------------------------------
+
 
 def generate_process_sheet(
     spec_path: str | Path,
@@ -778,6 +784,7 @@ def generate_controls_sheet(
 # ---------------------------------------------------------------------------
 # Top-level orchestration
 # ---------------------------------------------------------------------------
+
 
 def derive_related_path(path: str | Path, suffix: str) -> Path:
     """Derive a sibling path with *suffix* appended before the extension."""

@@ -1,4 +1,5 @@
 """Stream routing and drawing for P&ID generation."""
+
 from __future__ import annotations
 
 import logging

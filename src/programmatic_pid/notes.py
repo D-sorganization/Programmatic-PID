@@ -1,4 +1,5 @@
 """Notes-panel rendering for P&ID sheets."""
+
 from __future__ import annotations
 
 import logging
