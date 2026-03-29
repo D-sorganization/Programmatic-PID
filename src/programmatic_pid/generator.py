@@ -1,22 +1,78 @@
 #!/usr/bin/env python3
+"""P&ID generation entry-point — delegates to focused sub-modules.
+
+This module is the public API surface.  It re-exports every symbol that
+previously lived here so that existing ``import programmatic_pid.generator as mod``
+continues to work without changes.
+"""
 from __future__ import annotations
 
 import argparse
-import math
-import textwrap
+import logging
 from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
 import ezdxf
 import yaml
-from ezdxf.enums import TextEntityAlignment
 
+# Re-export everything that used to live in this single file so the public
+# interface is unchanged.
+from programmatic_pid.control_loops import (  # noqa: F401
+    add_control_loops,
+    orthogonal_control_route,
+    resolve_reference_point,
+)
+from programmatic_pid.dxf_builder import (  # noqa: F401
+    LabelPlacer,
+    add_arrow,
+    add_arrow_head,
+    add_bin_symbol,
+    add_box,
+    add_burner_symbol,
+    add_equipment,
+    add_fan_symbol,
+    add_hopper,
+    add_instrument,
+    add_poly_arrow,
+    add_rotary_valve_symbol,
+    add_text,
+    add_text_panel,
+    clamp,
+    closest_point_on_rect,
+    dedupe_points,
+    draw_equipment_symbol,
+    ensure_layer,
+    ensure_layers,
+    equipment_anchor,
+    equipment_center,
+    equipment_dims,
+    equipment_side_anchors,
+    get_equipment_bounds,
+    layer_name,
+    nearest_equipment_anchor,
+    parse_alignment,
+    rects_overlap,
+    resolve_endpoint,
+    spread_instrument_positions,
+    text_box,
+    to_float,
+    wrap_text_lines,
+)
+from programmatic_pid.notes import (  # noqa: F401
+    add_notes,
+    get_mass_balance_values,
+)
+from programmatic_pid.stream_router import add_stream  # noqa: F401
+from programmatic_pid.validator import SpecValidationError, validate_spec  # noqa: F401
 
-class SpecValidationError(ValueError):
-    pass
+logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Profile presets
+# ---------------------------------------------------------------------------
 
-PROFILE_PRESETS = {
+PROFILE_PRESETS: dict[str, dict[str, Any]] = {
     "review": {
         "layout": {
             "show_inline_equipment_notes": True,
@@ -74,29 +130,36 @@ PROFILE_PRESETS = {
 }
 
 
-def load_spec(path):
+# ---------------------------------------------------------------------------
+# Spec loading / config helpers
+# ---------------------------------------------------------------------------
+
+def load_spec(path: str | Path) -> dict[str, Any]:
+    """Load a YAML specification file.
+
+    Raises:
+        ValueError: If *path* is ``None`` or empty.
+    """
+    if not path:
+        raise ValueError("path must not be None or empty")
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def to_float(value, default=0.0):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-
-def get_project(spec):
+def get_project(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``project`` section of *spec*."""
     return spec.get("project", {})
 
 
-def get_drawing(spec):
+def get_drawing(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``drawing`` configuration from *spec*."""
     if "drawing" in spec and isinstance(spec["drawing"], dict):
         return spec["drawing"]
     return get_project(spec).get("drawing", {})
 
 
-def ensure_drawing(spec):
+def ensure_drawing(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``drawing`` dict, creating it in-place if absent."""
     if "drawing" in spec and isinstance(spec["drawing"], dict):
         return spec["drawing"]
     project = spec.setdefault("project", {})
@@ -107,7 +170,8 @@ def ensure_drawing(spec):
     return drawing
 
 
-def get_text_config(spec):
+def get_text_config(spec: dict[str, Any]) -> dict[str, float]:
+    """Derive text-height configuration from *spec*."""
     drawing = get_drawing(spec)
     raw = drawing.get("text")
     if isinstance(raw, dict):
@@ -129,7 +193,8 @@ def get_text_config(spec):
     }
 
 
-def get_layer_config(spec):
+def get_layer_config(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the layer configuration from *spec*."""
     drawing = get_drawing(spec)
     layers = drawing.get("layers")
     if isinstance(layers, dict) and layers:
@@ -140,7 +205,8 @@ def get_layer_config(spec):
     return {}
 
 
-def get_layout_config(spec):
+def get_layout_config(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the resolved layout configuration from *spec*."""
     drawing = get_drawing(spec)
     layout = drawing.get("layout", {})
     if not isinstance(layout, dict):
@@ -162,7 +228,12 @@ def get_layout_config(spec):
     }
 
 
-def apply_profile(spec, profile):
+def apply_profile(spec: dict[str, Any], profile: str | None) -> dict[str, Any]:
+    """Return a deep copy of *spec* with *profile* overrides applied.
+
+    Raises:
+        ValueError: If *profile* is not a recognised preset name.
+    """
     if profile is None:
         return deepcopy(spec)
     key = str(profile).strip().lower()
@@ -196,7 +267,8 @@ def apply_profile(spec, profile):
     return updated
 
 
-def prepare_spec(spec_path, profile):
+def prepare_spec(spec_path: str | Path, profile: str | None) -> dict[str, Any]:
+    """Load, validate, and apply *profile* to the spec at *spec_path*."""
     raw = load_spec(spec_path)
     validate_spec(raw)
     prepared = apply_profile(raw, profile)
@@ -204,424 +276,12 @@ def prepare_spec(spec_path, profile):
     return prepared
 
 
-def validate_spec(spec):
-    errors = []
-    if not isinstance(spec, dict):
-        raise SpecValidationError("Specification must be a YAML mapping.")
-
-    project = get_project(spec)
-    if not project.get("id"):
-        errors.append("project.id is required")
-    if not (project.get("title") or project.get("document_title")):
-        errors.append("project.title or project.document_title is required")
-
-    equipment = spec.get("equipment", [])
-    if not equipment:
-        errors.append("equipment list cannot be empty")
-
-    equipment_ids = set()
-    for eq in equipment:
-        eq_id = eq.get("id")
-        if not eq_id:
-            errors.append("equipment entry missing id")
-            continue
-        if eq_id in equipment_ids:
-            errors.append(f"duplicate equipment id: {eq_id}")
-        equipment_ids.add(eq_id)
-
-        w, h = equipment_dims(eq)
-        if w <= 0 or h <= 0:
-            errors.append(f"equipment {eq_id} has non-positive width/height")
-
-    instrument_ids = set()
-    for ins in spec.get("instruments", []):
-        ins_id = ins.get("id")
-        if not ins_id:
-            errors.append("instrument entry missing id")
-            continue
-        if ins_id in instrument_ids:
-            errors.append(f"duplicate instrument id: {ins_id}")
-        instrument_ids.add(ins_id)
-
-    for stream in spec.get("streams", []):
-        sid = stream.get("id", "<unknown>")
-        if "from" in stream:
-            fr = stream.get("from", {})
-            eq = fr.get("equipment")
-            if eq and eq not in equipment_ids:
-                errors.append(f"stream {sid} references unknown from equipment: {eq}")
-        if "to" in stream:
-            to = stream.get("to", {})
-            eq = to.get("equipment")
-            if eq and eq not in equipment_ids:
-                errors.append(f"stream {sid} references unknown to equipment: {eq}")
-
-    references = equipment_ids | instrument_ids
-    for loop in spec.get("control_loops", []):
-        lid = loop.get("id", "<unknown>")
-        meas = loop.get("measurement")
-        final = loop.get("final_element")
-        if not meas or not final:
-            errors.append(f"control loop {lid} missing measurement/final_element")
-            continue
-        if meas not in references:
-            errors.append(f"control loop {lid} unknown measurement reference: {meas}")
-        if final not in references:
-            errors.append(f"control loop {lid} unknown final element reference: {final}")
-
-    if errors:
-        raise SpecValidationError("Invalid spec:\n- " + "\n- ".join(errors))
-
-
-def ensure_layer(doc, name, color=7, linetype="CONTINUOUS"):
-    if not name:
-        return
-    if name in doc.layers:
-        return
-    attrs = {"color": int(color), "linetype": str(linetype)}
-    try:
-        doc.layers.new(name=name, dxfattribs=attrs)
-    except ezdxf.DXFValueError:
-        attrs["linetype"] = "CONTINUOUS"
-        doc.layers.new(name=name, dxfattribs=attrs)
-
-
-def ensure_layers(doc, spec):
-    for name, cfg in get_layer_config(spec).items():
-        cfg = cfg or {}
-        ensure_layer(doc, name, color=cfg.get("color", 7), linetype=cfg.get("linetype", "CONTINUOUS"))
-
-    for name, color in (
-        ("TEXT", 7),
-        ("NOTES", 3),
-        ("LEADERS", 8),
-        ("EQUIPMENT", 7),
-        ("INSTRUMENTS", 2),
-        ("PROCESS", 5),
-    ):
-        ltype = "DASHED" if name == "LEADERS" else "CONTINUOUS"
-        ensure_layer(doc, name, color=color, linetype=ltype)
-
-
-def layer_name(layer_index, *candidates, default="0"):
-    for candidate in candidates:
-        if not candidate:
-            continue
-        actual = layer_index.get(str(candidate).lower())
-        if actual:
-            return actual
-    return default
-
-
-def parse_alignment(align):
-    if isinstance(align, TextEntityAlignment):
-        return align
-    key = str(align or "MIDDLE_CENTER").upper()
-    return getattr(TextEntityAlignment, key, TextEntityAlignment.MIDDLE_CENTER)
-
-
-def wrap_text_lines(text, width):
-    chunks = textwrap.wrap(
-        str(text),
-        width=max(int(width), 12),
-        break_long_words=False,
-        break_on_hyphens=False,
-    )
-    return chunks if chunks else [str(text)]
-
-
-def rects_overlap(a, b, pad=0.0):
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    return not (ax2 + pad <= bx1 or bx2 + pad <= ax1 or ay2 + pad <= by1 or by2 + pad <= ay1)
-
-
-def text_box(text, x, y, h, align="MIDDLE_CENTER"):
-    text = str(text)
-    h = max(to_float(h, 1.0), 0.1)
-    width = max(len(text), 1) * h * 0.55
-    height = h * 1.2
-    align = str(align or "MIDDLE_CENTER").upper()
-    if "LEFT" in align:
-        x1, x2 = x, x + width
-    elif "RIGHT" in align:
-        x1, x2 = x - width, x
-    else:
-        x1, x2 = x - width / 2, x + width / 2
-
-    if "TOP" in align:
-        y1, y2 = y - height, y
-    elif "BOTTOM" in align:
-        y1, y2 = y, y + height
-    else:
-        y1, y2 = y - height / 2, y + height / 2
-    return (x1, y1, x2, y2)
-
-
-def clamp(value, lo, hi):
-    return max(lo, min(hi, value))
-
-
-def closest_point_on_rect(point, rect):
-    px, py = to_float(point[0]), to_float(point[1])
-    x1, y1, x2, y2 = rect
-    return clamp(px, x1, x2), clamp(py, y1, y2)
-
-
-class LabelPlacer:
-    def __init__(self):
-        self.occupied = []
-
-    def reserve_rect(self, rect):
-        self.occupied.append(rect)
-
-    def reserve_text(self, text, x, y, h, align="MIDDLE_CENTER"):
-        self.reserve_rect(text_box(text, x, y, h, align=align))
-
-    def find_position(self, text, anchor, h, preferred):
-        ax, ay = to_float(anchor[0]), to_float(anchor[1])
-        for dx, dy, align in preferred:
-            x = ax + dx
-            y = ay + dy
-            candidate = text_box(text, x, y, h, align=align)
-            if not any(rects_overlap(candidate, r, pad=h * 0.20) for r in self.occupied):
-                self.reserve_rect(candidate)
-                return x, y, align
-        fallback = preferred[0]
-        x = ax + fallback[0]
-        y = ay + fallback[1]
-        align = fallback[2]
-        self.reserve_rect(text_box(text, x, y, h, align=align))
-        return x, y, align
-
-
-def spread_instrument_positions(instruments, min_spacing=3.5):
-    placed = []
-    output = []
-    ring = [
-        (0.0, 0.0),
-        (2.0, 0.0),
-        (-2.0, 0.0),
-        (0.0, 2.0),
-        (0.0, -2.0),
-        (2.0, 2.0),
-        (-2.0, 2.0),
-        (2.0, -2.0),
-        (-2.0, -2.0),
-    ]
-    spacing = max(to_float(min_spacing, 3.5), 1.2)
-    for ins in instruments:
-        base_x = to_float(ins.get("x", 0.0))
-        base_y = to_float(ins.get("y", 0.0))
-        chosen = (base_x, base_y)
-        for radius in (1.0, 1.8, 2.6, 3.6):
-            found = None
-            for ox, oy in ring:
-                cand = (base_x + ox * radius, base_y + oy * radius)
-                if all((cand[0] - px) ** 2 + (cand[1] - py) ** 2 >= spacing**2 for px, py in placed):
-                    found = cand
-                    break
-            if found is not None:
-                chosen = found
-                break
-        placed.append(chosen)
-        copy = dict(ins)
-        copy["x"] = chosen[0]
-        copy["y"] = chosen[1]
-        output.append(copy)
-    return output
-
-
-def add_text(msp, text, x, y, h, layer="TEXT", align="MIDDLE_CENTER"):
-    t = msp.add_text(str(text), dxfattribs={"height": max(to_float(h, 1.0), 0.1), "layer": layer})
-    t.set_placement((to_float(x), to_float(y)), align=parse_alignment(align))
-    return t
-
-
-def add_text_panel(
-    msp,
-    x,
-    y,
-    w,
-    h,
-    title,
-    lines,
-    text_h,
-    text_layer,
-    border_layer,
-    max_chars=42,
-):
-    add_box(msp, x, y, w, h, border_layer)
-    inset_x = x + 1.1
-    inset_top = y + h - 1.0
-    add_text(msp, title, inset_x, inset_top, text_h * 1.05, layer=text_layer, align="TOP_LEFT")
-
-    step = max(text_h * 1.16, 0.9)
-    available = max(int((h - 2.6) / step), 1)
-    out = []
-    for line in lines:
-        if line is None:
-            out.append("")
-            continue
-        out.extend(wrap_text_lines(line, max_chars))
-    out = out[:available]
-
-    cy = inset_top - max(text_h * 1.55, 1.1)
-    for line in out:
-        add_text(msp, line, inset_x, cy, text_h, layer=text_layer, align="TOP_LEFT")
-        cy -= step
-
-
-def add_box(msp, x, y, w, h, layer):
-    x = to_float(x)
-    y = to_float(y)
-    w = to_float(w)
-    h = to_float(h)
-    pts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-    msp.add_lwpolyline(pts, close=True, dxfattribs={"layer": layer})
-
-
-def add_hopper(msp, x, y, w, h, layer):
-    x = to_float(x)
-    y = to_float(y)
-    w = to_float(w)
-    h = to_float(h)
-    bot_w = w * 0.72
-    cx = x + w / 2
-    pts = [(x, y + h), (x + w, y + h), (cx + bot_w / 2, y), (cx - bot_w / 2, y)]
-    msp.add_lwpolyline(pts, close=True, dxfattribs={"layer": layer})
-
-
-def add_fan_symbol(msp, x, y, w, h, layer):
-    cx = x + w / 2
-    cy = y + h / 2
-    r = max(min(w, h) * 0.42, 0.5)
-    msp.add_circle((cx, cy), radius=r, dxfattribs={"layer": layer})
-    blade = [(cx - r * 0.25, cy), (cx + r * 0.45, cy + r * 0.20), (cx + r * 0.45, cy - r * 0.20)]
-    msp.add_lwpolyline(blade, close=True, dxfattribs={"layer": layer})
-
-
-def add_rotary_valve_symbol(msp, x, y, w, h, layer):
-    cx = x + w / 2
-    cy = y + h / 2
-    r = max(min(w, h) * 0.35, 0.5)
-    msp.add_circle((cx, cy), radius=r, dxfattribs={"layer": layer})
-    msp.add_line((cx - r * 0.85, cy - r * 0.85), (cx + r * 0.85, cy + r * 0.85), dxfattribs={"layer": layer})
-    msp.add_line((cx - r * 0.85, cy + r * 0.85), (cx + r * 0.85, cy - r * 0.85), dxfattribs={"layer": layer})
-
-
-def add_burner_symbol(msp, x, y, w, h, layer):
-    add_box(msp, x, y, w, h, layer)
-    cx = x + w / 2
-    flame = [
-        (cx, y + h * 0.76),
-        (cx + w * 0.10, y + h * 0.48),
-        (cx, y + h * 0.22),
-        (cx - w * 0.10, y + h * 0.48),
-    ]
-    msp.add_lwpolyline(flame, close=True, dxfattribs={"layer": layer})
-
-
-def add_bin_symbol(msp, x, y, w, h, layer):
-    add_box(msp, x, y, w, h, layer)
-    msp.add_line((x, y + h), (x + w, y + h), dxfattribs={"layer": layer})
-    msp.add_line(
-        (x + w * 0.1, y + h + h * 0.12), (x + w * 0.9, y + h + h * 0.12), dxfattribs={"layer": layer}
-    )
-
-
-def draw_equipment_symbol(msp, eq, layer):
-    x = to_float(eq.get("x", 0.0))
-    y = to_float(eq.get("y", 0.0))
-    w, h = equipment_dims(eq)
-    eq_type = str(eq.get("type", "")).lower()
-    subtype = str(eq.get("subtype", "")).lower()
-
-    if eq_type == "hopper":
-        add_hopper(msp, x, y, w, h, layer)
-        return
-    if eq_type == "fan":
-        add_fan_symbol(msp, x, y, w, h, layer)
-        return
-    if eq_type == "rotary_valve":
-        add_rotary_valve_symbol(msp, x, y, w, h, layer)
-        return
-    if eq_type == "burner":
-        add_burner_symbol(msp, x, y, w, h, layer)
-        return
-    if eq_type == "bin":
-        add_bin_symbol(msp, x, y, w, h, layer)
-        return
-
-    add_box(msp, x, y, w, h, layer)
-
-    if eq_type == "vertical_retort" or subtype == "vertical_retort":
-        for zone in eq.get("zones", []):
-            zy = y + h * to_float(zone.get("y_frac", 0.0))
-            msp.add_line((x + 0.6, zy), (x + w - 0.6, zy), dxfattribs={"layer": layer})
-
-
-def add_arrow_head(msp, s, e, layer, color=None, arrow_size=1.6):
-    sx, sy = to_float(s[0]), to_float(s[1])
-    ex, ey = to_float(e[0]), to_float(e[1])
-    attrs = {"layer": layer}
-    if color is not None:
-        attrs["color"] = int(color)
-
-    ang = math.atan2(ey - sy, ex - sx)
-    ah = max(to_float(arrow_size, 1.6), 0.2)
-    aw = ah * 0.45
-    p1 = (ex, ey)
-    p2 = (
-        ex - ah * math.cos(ang) + aw * math.sin(ang),
-        ey - ah * math.sin(ang) - aw * math.cos(ang),
-    )
-    p3 = (
-        ex - ah * math.cos(ang) - aw * math.sin(ang),
-        ey - ah * math.sin(ang) + aw * math.cos(ang),
-    )
-    msp.add_solid([p1, p2, p3, p3], dxfattribs=attrs)
-
-
-def add_arrow(msp, s, e, layer, color=None, arrow_size=1.6):
-    sx, sy = to_float(s[0]), to_float(s[1])
-    ex, ey = to_float(e[0]), to_float(e[1])
-    attrs = {"layer": layer}
-    if color is not None:
-        attrs["color"] = int(color)
-
-    msp.add_line((sx, sy), (ex, ey), dxfattribs=attrs)
-    add_arrow_head(msp, (sx, sy), (ex, ey), layer=layer, color=color, arrow_size=arrow_size)
-
-
-def add_poly_arrow(msp, verts, layer, color=None, arrow_size=1.6):
-    points = [(to_float(v[0]), to_float(v[1])) for v in verts if len(v) >= 2]
-    if len(points) < 2:
-        return
-
-    attrs = {"layer": layer}
-    if color is not None:
-        attrs["color"] = int(color)
-    msp.add_lwpolyline(points, dxfattribs=attrs)
-    add_arrow_head(msp, points[-2], points[-1], layer, color=color, arrow_size=arrow_size)
-
-
-def equipment_dims(eq):
-    return to_float(eq.get("w", eq.get("width", 0.0))), to_float(eq.get("h", eq.get("height", 0.0)))
-
-
-def get_equipment_bounds(spec):
-    equipment = spec.get("equipment", [])
-    if not equipment:
-        return 0.0, 0.0, 240.0, 160.0
-    x_min = min(to_float(eq.get("x", 0.0)) for eq in equipment)
-    y_min = min(to_float(eq.get("y", 0.0)) for eq in equipment)
-    x_max = max(to_float(eq.get("x", 0.0)) + equipment_dims(eq)[0] for eq in equipment)
-    y_max = max(to_float(eq.get("y", 0.0)) + equipment_dims(eq)[1] for eq in equipment)
-    return x_min, y_min, x_max, y_max
-
-
-def compute_layout_regions(spec):
+# ---------------------------------------------------------------------------
+# Layout computation
+# ---------------------------------------------------------------------------
+
+def compute_layout_regions(spec: dict[str, Any]) -> dict[str, Any]:
+    """Compute canvas, equipment-bbox, and panel positions."""
     layout_cfg = get_layout_config(spec)
     eq_min_x, eq_min_y, eq_max_x, eq_max_y = get_equipment_bounds(spec)
 
@@ -663,171 +323,8 @@ def compute_layout_regions(spec):
     }
 
 
-def equipment_center(eq):
-    x = to_float(eq.get("x", 0.0))
-    y = to_float(eq.get("y", 0.0))
-    w, h = equipment_dims(eq)
-    return x + w / 2, y + h / 2
-
-
-def equipment_side_anchors(eq):
-    x = to_float(eq.get("x", 0.0))
-    y = to_float(eq.get("y", 0.0))
-    w, h = equipment_dims(eq)
-    return {
-        "left": (x, y + h / 2),
-        "right": (x + w, y + h / 2),
-        "top": (x + w / 2, y + h),
-        "bottom": (x + w / 2, y),
-    }
-
-
-def equipment_anchor(eq, side, offset=0.0):
-    x = to_float(eq.get("x", 0.0))
-    y = to_float(eq.get("y", 0.0))
-    w, h = equipment_dims(eq)
-    side = str(side or "right").lower()
-    offset = to_float(offset, 0.0)
-
-    if side == "left":
-        return x, y + h / 2 + offset
-    if side == "top":
-        return x + w / 2 + offset, y + h
-    if side == "bottom":
-        return x + w / 2 + offset, y
-    return x + w, y + h / 2 + offset
-
-
-def nearest_equipment_anchor(eq, source):
-    sx, sy = to_float(source[0]), to_float(source[1])
-    anchors = equipment_side_anchors(eq).values()
-    return min(anchors, key=lambda p: (p[0] - sx) ** 2 + (p[1] - sy) ** 2)
-
-
-def resolve_endpoint(endpoint, equipment_by_id):
-    endpoint = endpoint or {}
-    if "point" in endpoint:
-        px, py = endpoint["point"]
-        return to_float(px), to_float(py)
-
-    eq_id = endpoint.get("equipment")
-    if not eq_id or eq_id not in equipment_by_id:
-        raise KeyError(f"Unknown equipment endpoint: {eq_id}")
-    return equipment_anchor(
-        equipment_by_id[eq_id],
-        endpoint.get("side", "right"),
-        endpoint.get("offset", 0.0),
-    )
-
-
-def dedupe_points(points):
-    cleaned = []
-    for p in points:
-        if not cleaned:
-            cleaned.append((to_float(p[0]), to_float(p[1])))
-            continue
-        px, py = cleaned[-1]
-        qx, qy = to_float(p[0]), to_float(p[1])
-        if abs(px - qx) < 1e-9 and abs(py - qy) < 1e-9:
-            continue
-        cleaned.append((qx, qy))
-    return cleaned
-
-
-def orthogonal_control_route(start, end, route_index=0, spread=4.0, corridor_y=None):
-    sx, sy = to_float(start[0]), to_float(start[1])
-    ex, ey = to_float(end[0]), to_float(end[1])
-    if corridor_y is not None:
-        detour_y = to_float(corridor_y) - (route_index % 5) * max(to_float(spread), 0.5)
-        return dedupe_points([(sx, sy), (sx, detour_y), (ex, detour_y), (ex, ey)])
-    offset_band = (route_index % 5) - 2
-    center_x = sx + (ex - sx) * 0.5 + offset_band * max(to_float(spread), 0.5)
-    return dedupe_points([(sx, sy), (center_x, sy), (center_x, ey), (ex, ey)])
-
-
-def resolve_reference_point(ref_id, equipment_by_id, instrument_by_id, stream_points):
-    if ref_id in instrument_by_id:
-        ins = instrument_by_id[ref_id]
-        return to_float(ins.get("x", 0.0)), to_float(ins.get("y", 0.0)), "instrument"
-
-    if ref_id in equipment_by_id:
-        cx, cy = equipment_center(equipment_by_id[ref_id])
-        return cx, cy, "equipment"
-
-    if ref_id in stream_points:
-        sx, sy = stream_points[ref_id]
-        return to_float(sx), to_float(sy), "stream"
-
-    return None
-
-
-def add_control_loops(
-    msp,
-    spec,
-    text_h,
-    text_layer,
-    equipment_by_id,
-    instrument_by_id,
-    stream_points,
-    process_bbox=None,
-    show_loop_tags=False,
-):
-    loops = spec.get("control_loops", [])
-    if not loops:
-        return
-
-    defaults = spec.get("defaults", {})
-    spread = max(to_float(defaults.get("control_line_offset"), 1.5) * 2.0, 1.0)
-    arrow_size = max(text_h * 0.9, 0.9)
-    corridor_y = None
-    if process_bbox:
-        corridor_y = to_float(process_bbox[1]) - max(spread * 2.2, 3.0)
-
-    for idx, loop in enumerate(loops):
-        measurement_id = str(loop.get("measurement", "")).strip()
-        final_element_id = str(loop.get("final_element", "")).strip()
-        if not measurement_id or not final_element_id:
-            print(f'Skipped control loop {loop.get("id", "<unknown>")}: missing measurement/final_element')
-            continue
-
-        start_ref = resolve_reference_point(measurement_id, equipment_by_id, instrument_by_id, stream_points)
-        end_ref = resolve_reference_point(final_element_id, equipment_by_id, instrument_by_id, stream_points)
-        if start_ref is None or end_ref is None:
-            print(f'Skipped control loop {loop.get("id", "<unknown>")}: unresolved endpoints')
-            continue
-
-        sx, sy, start_kind = start_ref
-        ex, ey, end_kind = end_ref
-        if start_kind == "equipment":
-            sx, sy = nearest_equipment_anchor(equipment_by_id[measurement_id], (ex, ey))
-        if end_kind == "equipment":
-            ex, ey = nearest_equipment_anchor(equipment_by_id[final_element_id], (sx, sy))
-
-        layer = str(loop.get("line_layer") or "control_lines")
-        if layer not in msp.doc.layers:
-            ensure_layer(msp.doc, layer, color=1, linetype="DASHDOT")
-
-        route = orthogonal_control_route(
-            (sx, sy),
-            (ex, ey),
-            route_index=idx,
-            spread=spread,
-            corridor_y=corridor_y,
-        )
-        if len(route) < 2:
-            continue
-
-        msp.add_lwpolyline(route, dxfattribs={"layer": layer})
-        add_arrow_head(msp, route[-2], route[-1], layer=layer, arrow_size=arrow_size)
-
-        loop_tag = str(loop.get("tag") or loop.get("id") or "").strip()
-        if loop_tag and show_loop_tags:
-            mx = sum(p[0] for p in route) / len(route)
-            my = sum(p[1] for p in route) / len(route)
-            add_text(msp, loop_tag, mx, my + text_h * 0.8, text_h * 0.9, layer=text_layer)
-
-
-def get_modelspace_extent(spec):
+def get_modelspace_extent(spec: dict[str, Any]) -> tuple[float, float, float, float]:
+    """Return the modelspace extent for a controls sheet."""
     drawing = get_drawing(spec)
     extent = drawing.get("modelspace_extent", {})
     if all(k in extent for k in ("x_min", "y_min", "x_max", "y_max")):
@@ -850,164 +347,19 @@ def get_modelspace_extent(spec):
     return 0.0, 0.0, 240.0, 160.0
 
 
-def add_equipment(msp, eq, text_h, text_layer, notes_layer, show_inline_notes=False):
-    x = to_float(eq.get("x", 0.0))
-    y = to_float(eq.get("y", 0.0))
-    w, hh = equipment_dims(eq)
-    if w <= 0 or hh <= 0:
-        return
+# ---------------------------------------------------------------------------
+# Title block
+# ---------------------------------------------------------------------------
 
-    layer = eq.get("layer", "EQUIPMENT")
-    eq_type = str(eq.get("type", "")).lower()
-    subtype = str(eq.get("subtype", "")).lower()
-
-    draw_equipment_symbol(msp, eq, layer)
-
-    eq_id = str(eq.get("id", "")).strip()
-    service = str(eq.get("service") or eq.get("name") or eq.get("tag") or "").strip()
-    if eq_id and service and service != eq_id:
-        add_text(msp, eq_id, x + w / 2, y + hh / 2 + text_h * 0.48, text_h, layer=text_layer)
-        add_text(msp, service, x + w / 2, y + hh / 2 - text_h * 0.52, text_h * 0.82, layer=text_layer)
-    elif eq_id:
-        add_text(msp, eq_id, x + w / 2, y + hh / 2, text_h, layer=text_layer)
-
-    if eq_type == "vertical_retort" or subtype == "vertical_retort":
-        for zone in eq.get("zones", []):
-            zy = y + hh * to_float(zone.get("y_frac", 0.0))
-            add_text(msp, zone.get("name", ""), x + w / 2, zy + text_h * 0.6, text_h * 0.7, layer=text_layer)
-
-    if show_inline_notes:
-        note_step = max(text_h * 1.2, 0.8)
-        for i, note in enumerate(eq.get("notes", [])[:2]):
-            add_text(
-                msp,
-                f"- {note}",
-                x,
-                y - note_step * (i + 1),
-                text_h * 0.62,
-                layer=notes_layer,
-                align="TOP_LEFT",
-            )
-
-
-def add_instrument(
-    msp,
-    instrument,
-    text_h,
-    text_layer,
-    default_layer,
-    radius,
-    show_number_suffix=False,
-    label_placer=None,
-):
-    layer = instrument.get("layer", default_layer)
-    x = to_float(instrument.get("x", 0.0))
-    y = to_float(instrument.get("y", 0.0))
-    bubble = str(instrument.get("tag") or instrument.get("id") or "").strip()
-    number = str(instrument.get("id", "")).split("-", 1)[-1]
-
-    r = max(to_float(radius, 1.8), 0.4)
-    msp.add_circle((x, y), radius=r, dxfattribs={"layer": layer})
-    if label_placer is not None:
-        label_placer.reserve_rect((x - r, y - r, x + r, y + r))
-    add_text(msp, bubble, x, y, max(text_h * 0.45, 0.5), layer=text_layer)
-    if show_number_suffix and number:
-        add_text(
-            msp,
-            number,
-            x + max(to_float(radius, 1.8), 0.4) + 0.5,
-            y,
-            max(text_h * 0.5, 0.5),
-            layer=text_layer,
-            align="MIDDLE_LEFT",
-        )
-
-
-def add_stream(
-    msp,
-    stream,
-    text_h,
-    text_layer,
-    equipment_by_id,
-    arrow_size,
-    label_scale=0.82,
-    label_placer=None,
-    draw_label_leader=False,
-    leader_layer="LEADERS",
-):
-    layer = stream.get("layer", "PROCESS")
-    color = stream.get("color")
-    lx = 0.0
-    ly = 0.0
-
-    if "vertices" in stream:
-        verts = [tuple(v) for v in stream.get("vertices", [])]
-        if len(verts) < 2:
-            return None
-        add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)
-        lx = sum(v[0] for v in verts) / len(verts)
-        ly = sum(v[1] for v in verts) / len(verts)
-    elif "start" in stream and "end" in stream:
-        start = tuple(stream["start"])
-        end = tuple(stream["end"])
-        add_arrow(msp, start, end, layer, color=color, arrow_size=arrow_size)
-        lx = (to_float(start[0]) + to_float(end[0])) / 2
-        ly = (to_float(start[1]) + to_float(end[1])) / 2
-    elif "from" in stream and "to" in stream:
-        start = resolve_endpoint(stream.get("from"), equipment_by_id)
-        end = resolve_endpoint(stream.get("to"), equipment_by_id)
-        waypoints = [tuple(wp) for wp in stream.get("waypoints", [])]
-        verts = [start, *waypoints, end]
-        if len(verts) > 2:
-            add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)
-            lx = sum(to_float(v[0]) for v in verts) / len(verts)
-            ly = sum(to_float(v[1]) for v in verts) / len(verts)
-        else:
-            add_arrow(msp, start, end, layer, color=color, arrow_size=arrow_size)
-            lx = (start[0] + end[0]) / 2
-            ly = (start[1] + end[1]) / 2
-    else:
-        return None
-
-    label = stream.get("label", "")
-    if isinstance(label, dict):
-        text = str(label.get("text", "")).strip()
-        lx = to_float(label.get("x", lx))
-        ly = to_float(label.get("y", ly))
-    else:
-        text = str(label).strip()
-
-    if not text and stream.get("name"):
-        text = str(stream["name"])
-    if text:
-        h = max(text_h * label_scale, 0.5)
-        default_x = lx
-        default_y = ly + text_h * 0.72
-        if label_placer is not None:
-            x, y, align = label_placer.find_position(
-                text,
-                (lx, ly),
-                h,
-                preferred=[
-                    (0.0, text_h * 1.1, "BOTTOM_CENTER"),
-                    (0.0, -text_h * 1.1, "TOP_CENTER"),
-                    (text_h * 1.5, text_h * 0.6, "BOTTOM_LEFT"),
-                    (-text_h * 1.5, text_h * 0.6, "BOTTOM_RIGHT"),
-                ],
-            )
-            add_text(msp, text, x, y, h, layer=text_layer, align=align)
-            displaced = abs(x - default_x) > h * 0.35 or abs(y - default_y) > h * 0.35
-            if draw_label_leader and displaced:
-                if leader_layer not in msp.doc.layers:
-                    ensure_layer(msp.doc, leader_layer, color=8, linetype="DASHED")
-                target = closest_point_on_rect((lx, ly), text_box(text, x, y, h, align=align))
-                msp.add_line((lx, ly), target, dxfattribs={"layer": leader_layer})
-        else:
-            add_text(msp, text, default_x, default_y, h, layer=text_layer)
-    return to_float(lx), to_float(ly)
-
-
-def add_title_block(msp, spec, text_cfg, text_layer, notes_layer, title_box):
+def add_title_block(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    text_layer: str,
+    notes_layer: str,
+    title_box: tuple[float, float, float, float],
+) -> None:
+    """Draw the title-block panel at the bottom of the canvas."""
     x, y, w, h = title_box
     if w <= 0 or h <= 0:
         return
@@ -1038,124 +390,17 @@ def add_title_block(msp, spec, text_cfg, text_layer, notes_layer, title_box):
     add_text(msp, meta, x + 1.1, y + 0.9, text_cfg["small_height"], layer=text_layer, align="BOTTOM_LEFT")
 
 
-def get_mass_balance_values(spec):
-    mb = spec.get("mass_balance", {}).get("basis", {})
-    if mb:
-        wet_feed = to_float(mb.get("wet_feed_kg_h"), 1000)
-        feed_mc = to_float(mb.get("feed_moisture_wt_frac"), 0.30)
-        dried_mc = to_float(mb.get("dried_feed_target_moisture_wt_frac"), 0.20)
-        char_wet = to_float(mb.get("wet_biochar_product_kg_h"), 300)
-        char_mc = to_float(mb.get("product_moisture_wt_frac"), 0.02)
-        return wet_feed, feed_mc, dried_mc, char_wet, char_mc
+# ---------------------------------------------------------------------------
+# SVG export
+# ---------------------------------------------------------------------------
 
-    assumptions = spec.get("assumptions", {})
-    feed = assumptions.get("feed", {})
-    dryer = assumptions.get("dryer", {})
-    reactor = assumptions.get("reactor", {})
-
-    wet_feed = to_float(feed.get("wet_biomass_rate_kg_h"), 1000)
-    feed_mc = to_float(feed.get("moisture_wtfrac"), 0.30)
-    dried_mc = to_float(dryer.get("target_moisture_wtfrac"), 0.20)
-    dry_yield = to_float(reactor.get("dry_char_yield_fraction_of_dry_feed"), 0.42)
-    char_mc = to_float(reactor.get("char_product_moisture_wtfrac"), 0.02)
-
-    dry_solids = wet_feed * (1 - feed_mc)
-    char_dry = dry_solids * dry_yield
-    char_wet = char_dry / (1 - char_mc) if char_mc < 1.0 else 0.0
-    return wet_feed, feed_mc, dried_mc, char_wet, char_mc
-
-
-def add_notes(msp, spec, text_cfg, text_layer, notes_layer, layout_regions):
-    panels = layout_regions["panels"]
-    cfg = layout_regions["layout_cfg"]
-    max_chars = cfg["panel_text_chars"]
-
-    loops = spec.get("control_loops", [])
-    loop_lines = [
-        f'{loop.get("id", "")}: {loop.get("objective") or loop.get("description") or loop.get("note", "")}'
-        for loop in loops
-    ]
-    add_text_panel(
-        msp,
-        *panels["control"],
-        title="Key Control Loops",
-        lines=loop_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
-    )
-
-    wet_feed, feed_mc, dried_mc, char_wet, char_mc = get_mass_balance_values(spec)
-    dry_solids = wet_feed * (1 - feed_mc)
-    water_in = wet_feed * feed_mc
-    water_after = dry_solids * dried_mc / (1 - dried_mc) if dried_mc < 1.0 else 0.0
-    water_removed = water_in - water_after
-    char_dry = char_wet * (1 - char_mc)
-    dry_yield = (char_dry / dry_solids * 100) if dry_solids else 0.0
-    mass_lines = [
-        f"Feed water in = {water_in:.0f} kg/h",
-        f"Dry biomass solids in = {dry_solids:.0f} kg/h",
-        f"Water removed in dryer = {water_removed:.0f} kg/h",
-        f"Biochar product = {char_wet:.0f} kg/h wet",
-        f"Dry-basis char yield = {dry_yield:.1f}%",
-    ]
-    add_text_panel(
-        msp,
-        *panels["mass"],
-        title="Approximate Mass Balance",
-        lines=mass_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
-    )
-
-    design_notes = list(spec.get("annotations", {}).get("notes_panel", {}).get("bullets", []))
-    pressure = spec.get("pressure_control", {})
-    if isinstance(pressure, dict):
-        mode = pressure.get("mode")
-        pset = pressure.get("normal_operating_pressure_psig")
-        if mode:
-            design_notes.insert(0, f"Pressure mode: {mode}")
-        if pset is not None:
-            design_notes.insert(1, f"Normal operating pressure target: {pset} psig")
-        for note in pressure.get("notes", [])[:2]:
-            design_notes.append(note)
-
-    interlock_lines = [
-        f'{item.get("id", "")}: {item.get("trigger", "")}' for item in spec.get("interlocks", [])[:5]
-    ]
-    equipment_note_lines = []
-    for eq in spec.get("equipment", []):
-        notes = eq.get("notes", [])
-        if notes:
-            equipment_note_lines.append(f'{eq.get("id", "")}: {notes[0]}')
-
-    right_lines = []
-    right_lines.extend(f"- {note}" for note in design_notes[:6])
-    if interlock_lines:
-        right_lines.append("")
-        right_lines.append("Interlock Triggers:")
-        right_lines.extend(interlock_lines)
-    if equipment_note_lines:
-        right_lines.append("")
-        right_lines.append("Equipment Notes:")
-        right_lines.extend(equipment_note_lines[:6])
-
-    add_text_panel(
-        msp,
-        *panels["right"],
-        title="Design and Safety Notes",
-        lines=right_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
-    )
-
-
-def export_svg_from_dxf(spec, dxf_path, svg_path, fallback_extent):
+def export_svg_from_dxf(
+    spec: dict[str, Any],
+    dxf_path: str | Path,
+    svg_path: str | Path | None,
+    fallback_extent: tuple[float, float, float, float],
+) -> None:
+    """Attempt to convert a DXF file to SVG using ezdxf's drawing add-on."""
     if not svg_path:
         return
     x_min, y_min, x_max, y_max = fallback_extent
@@ -1183,10 +428,28 @@ def export_svg_from_dxf(spec, dxf_path, svg_path, fallback_extent):
         page = layout.Page(page_width, page_height, units=unit_map.get(unit_name, layout.Units.mm))
         Path(svg_path).write_text(backend.get_string(page), encoding="utf-8")
     except Exception as exc:
-        print(f"DXF created, but SVG export failed: {exc}")
+        logger.error("DXF created, but SVG export failed: %s", exc)
 
 
-def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presentation", prepared_spec=None):
+# ---------------------------------------------------------------------------
+# Sheet generation
+# ---------------------------------------------------------------------------
+
+def generate_process_sheet(
+    spec_path: str | Path,
+    out_path: str | Path,
+    svg_path: str | Path | None = None,
+    profile: str = "presentation",
+    prepared_spec: dict[str, Any] | None = None,
+) -> None:
+    """Generate the main P&ID process sheet (Sheet 1).
+
+    Raises:
+        ValueError: If *out_path* is ``None`` or empty.
+    """
+    if not out_path:
+        raise ValueError("out_path must not be None or empty")
+
     if prepared_spec is None:
         spec = prepare_spec(spec_path, profile)
     else:
@@ -1285,7 +548,7 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
             label_placer=label_placer,
         )
 
-    stream_points = {}
+    stream_points: dict[str, tuple[float, float]] = {}
     for stream in spec.get("streams", []):
         try:
             stream_point = add_stream(
@@ -1304,7 +567,7 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
             if stream_id and stream_point:
                 stream_points[stream_id] = stream_point
         except Exception as exc:
-            print(f'Skipped stream {stream.get("id", "<unknown>")}: {exc}')
+            logger.warning("Skipped stream %s: %s", stream.get("id", "<unknown>"), exc)
 
     add_control_loops(
         msp,
@@ -1336,12 +599,26 @@ def generate_process_sheet(spec_path, out_path, svg_path=None, profile="presenta
     doc.saveas(out_path)
     export_svg_from_dxf(spec, out_path, svg_path, fallback_extent=(x_min, y_min, x_max, y_max))
 
-    print(f"Created: {out_path}")
+    logger.info("Created: %s", out_path)
     if svg_path:
-        print(f"Attempted SVG: {svg_path}")
+        logger.info("Attempted SVG: %s", svg_path)
 
 
-def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="presentation", prepared_spec=None):
+def generate_controls_sheet(
+    spec_path: str | Path,
+    out_path: str | Path,
+    svg_path: str | Path | None = None,
+    profile: str = "presentation",
+    prepared_spec: dict[str, Any] | None = None,
+) -> None:
+    """Generate the controls & interlocks sheet (Sheet 2).
+
+    Raises:
+        ValueError: If *out_path* is ``None`` or empty.
+    """
+    if not out_path:
+        raise ValueError("out_path must not be None or empty")
+
     if prepared_spec is None:
         spec = prepare_spec(spec_path, profile)
     else:
@@ -1470,7 +747,7 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
         max_chars=72,
     )
 
-    inst_lines = []
+    inst_lines: list[str] = []
     for ins in spec.get("instruments", []):
         tag = str(ins.get("tag") or ins.get("id") or "")
         service = str(ins.get("service", "")).strip()
@@ -1493,25 +770,33 @@ def generate_controls_sheet(spec_path, out_path, svg_path=None, profile="present
     out_path.parent.mkdir(parents=True, exist_ok=True)
     doc.saveas(out_path)
     export_svg_from_dxf(spec, out_path, svg_path, fallback_extent=(x_min, y_min, x_max, y_max))
-    print(f"Created: {out_path}")
+    logger.info("Created: %s", out_path)
     if svg_path:
-        print(f"Attempted SVG: {svg_path}")
+        logger.info("Attempted SVG: %s", svg_path)
 
 
-def derive_related_path(path, suffix):
+# ---------------------------------------------------------------------------
+# Top-level orchestration
+# ---------------------------------------------------------------------------
+
+def derive_related_path(path: str | Path, suffix: str) -> Path:
+    """Derive a sibling path with *suffix* appended before the extension."""
+    if not suffix or not isinstance(suffix, str):
+        raise ValueError("suffix must be a non-empty string")
     p = Path(path)
     return p.with_name(f"{p.stem}_{suffix}{p.suffix}")
 
 
 def generate(
-    spec_path,
-    out_path,
-    svg_path=None,
-    sheet_set="two",
-    controls_out=None,
-    controls_svg=None,
-    profile="presentation",
-):
+    spec_path: str | Path,
+    out_path: str | Path,
+    svg_path: str | Path | None = None,
+    sheet_set: str = "two",
+    controls_out: str | Path | None = None,
+    controls_svg: str | Path | None = None,
+    profile: str = "presentation",
+) -> None:
+    """Generate one or two P&ID sheets from a YAML specification."""
     prepared_spec = prepare_spec(spec_path, profile)
     generate_process_sheet(spec_path, out_path, svg_path, profile=profile, prepared_spec=prepared_spec)
     if sheet_set == "two":
@@ -1527,7 +812,8 @@ def generate(
         )
 
 
-def main():
+def main() -> None:
+    """CLI entry-point."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--spec", required=True)
     ap.add_argument("--out", required=True)
