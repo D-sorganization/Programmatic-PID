@@ -441,6 +441,464 @@ def export_svg_from_dxf(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_sheet_layers(doc: Any) -> dict[str, str]:
+    """Resolve canonical layer names for generated sheets."""
+    layer_index = {layer.dxf.name.lower(): layer.dxf.name for layer in doc.layers}
+    return {
+        "text": layer_name(layer_index, "TEXT", "annotations", "titleblock", default="TEXT"),
+        "notes": layer_name(layer_index, "NOTES", "annotations", default="TEXT"),
+        "instrument": layer_name(layer_index, "INSTRUMENTS", "instruments", default="INSTRUMENTS"),
+        "leader": layer_name(layer_index, "LEADERS", default="LEADERS"),
+        "control": layer_name(layer_index, "control_lines", default="control_lines"),
+    }
+
+
+def _prepare_process_sheet_context(spec: dict[str, Any]) -> dict[str, Any]:
+    """Build the rendering context needed for the process sheet."""
+    doc = ezdxf.new(setup=True)
+    ensure_layers(doc, spec)
+    layout_regions = compute_layout_regions(spec)
+    layout_cfg = layout_regions["layout_cfg"]
+    layers = _resolve_sheet_layers(doc)
+    text_cfg = get_text_config(spec)
+    arrow_size = to_float(
+        spec.get("defaults", {}).get("arrow_size"), max(text_cfg["small_height"] * 1.2, 1.2)
+    )
+    bubble_radius = to_float(
+        spec.get("defaults", {}).get("instrument_bubble_radius"), max(text_cfg["small_height"] * 0.9, 1.0)
+    )
+    return {
+        "doc": doc,
+        "msp": doc.modelspace(),
+        "layout_regions": layout_regions,
+        "layout_cfg": layout_cfg,
+        "layers": layers,
+        "text_cfg": text_cfg,
+        "arrow_size": arrow_size,
+        "bubble_radius": bubble_radius,
+        "instrument_spacing": bubble_radius * layout_cfg["instrument_spacing_factor"],
+    }
+
+
+def _build_process_label_placer(spec: dict[str, Any], layout_regions: dict[str, Any]) -> LabelPlacer:
+    """Reserve occupied regions so label placement can avoid collisions."""
+    label_placer = LabelPlacer()
+    for eq in spec.get("equipment", []):
+        x = to_float(eq.get("x", 0.0))
+        y = to_float(eq.get("y", 0.0))
+        w, h = equipment_dims(eq)
+        label_placer.reserve_rect((x, y, x + w, y + h))
+    for panel in layout_regions["panels"].values():
+        px, py, pw, ph = panel
+        label_placer.reserve_rect((px, py, px + pw, py + ph))
+    return label_placer
+
+
+def _draw_process_frame(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    layout_regions: dict[str, Any],
+    text_layer: str,
+    notes_layer: str,
+) -> tuple[float, float, float, float]:
+    """Draw the process-sheet page frame, title block, and main title."""
+    equipment_bbox = layout_regions["equipment_bbox"]
+    x_min, y_min, x_max, y_max = layout_regions["canvas_bbox"]
+    eq_min_x, eq_min_y, eq_max_x, eq_max_y = equipment_bbox
+
+    add_box(msp, x_min, y_min, x_max - x_min, y_max - y_min, notes_layer)
+    add_box(
+        msp,
+        eq_min_x - 2.0,
+        eq_min_y - 2.0,
+        (eq_max_x - eq_min_x) + 4.0,
+        (eq_max_y - eq_min_y) + 4.0,
+        notes_layer,
+    )
+    add_title_block(msp, spec, text_cfg, text_layer, notes_layer, layout_regions["panels"]["title"])
+
+    project = get_project(spec)
+    doc_title = project.get("document_title") or project.get("title") or "Process and Instrumentation Diagram"
+    subtitle = project.get("subtitle") or "Conceptual process arrangement"
+    add_text(
+        msp,
+        doc_title,
+        (eq_min_x + eq_max_x) / 2,
+        eq_max_y + max(text_cfg["title_height"] * 0.9, 3.0),
+        text_cfg["title_height"],
+        layer=text_layer,
+    )
+    add_text(
+        msp,
+        subtitle,
+        (eq_min_x + eq_max_x) / 2,
+        eq_max_y + max(text_cfg["title_height"] * 0.1, 1.3),
+        max(text_cfg["subtitle_height"] * 0.95, 1.2),
+        layer=text_layer,
+    )
+    return equipment_bbox
+
+
+def _draw_process_equipment(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    layout_cfg: dict[str, Any],
+    text_layer: str,
+    notes_layer: str,
+) -> dict[str, Any]:
+    """Draw process equipment and return an index keyed by equipment id."""
+    equipment_by_id = {eq.get("id"): eq for eq in spec.get("equipment", []) if eq.get("id")}
+    for eq in spec.get("equipment", []):
+        add_equipment(
+            msp,
+            eq,
+            text_cfg["body_height"],
+            text_layer=text_layer,
+            notes_layer=notes_layer,
+            show_inline_notes=layout_cfg["show_inline_equipment_notes"],
+        )
+    return equipment_by_id
+
+
+def _draw_process_instruments(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    layout_cfg: dict[str, Any],
+    instrument_layer: str,
+    text_layer: str,
+    bubble_radius: float,
+    label_placer: LabelPlacer,
+) -> dict[str, Any]:
+    """Draw instruments and return an index keyed by instrument id."""
+    instrument_by_id = {ins.get("id"): ins for ins in spec.get("instruments", []) if ins.get("id")}
+    for ins in spec.get("instruments", []):
+        add_instrument(
+            msp,
+            ins,
+            text_h=text_cfg["small_height"],
+            text_layer=text_layer,
+            default_layer=instrument_layer,
+            radius=bubble_radius,
+            show_number_suffix=layout_cfg["show_instrument_suffix"],
+            label_placer=label_placer,
+        )
+    return instrument_by_id
+
+
+def _draw_process_streams(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    layout_cfg: dict[str, Any],
+    text_layer: str,
+    leader_layer: str,
+    equipment_by_id: dict[str, Any],
+    arrow_size: float,
+    label_placer: LabelPlacer,
+) -> dict[str, tuple[float, float]]:
+    """Draw process streams and return resolved stream label anchor points."""
+    stream_points: dict[str, tuple[float, float]] = {}
+    for stream in spec.get("streams", []):
+        try:
+            stream_point = add_stream(
+                msp,
+                stream,
+                text_h=text_cfg["small_height"],
+                text_layer=text_layer,
+                equipment_by_id=equipment_by_id,
+                arrow_size=arrow_size,
+                label_scale=layout_cfg["stream_label_scale"],
+                label_placer=label_placer,
+                draw_label_leader=layout_cfg["stream_label_leaders"],
+                leader_layer=leader_layer,
+            )
+            stream_id = stream.get("id")
+            if stream_id and stream_point:
+                stream_points[stream_id] = stream_point
+        except Exception as exc:
+            logger.warning("Skipped stream %s: %s", stream.get("id", "<unknown>"), exc)
+    return stream_points
+
+
+def _add_process_disclaimer(
+    msp: Any,
+    text_cfg: dict[str, float],
+    layout_regions: dict[str, Any],
+    notes_layer: str,
+) -> None:
+    """Add the standard process-sheet disclaimer above the title block."""
+    title_panel = layout_regions["panels"]["title"]
+    add_text(
+        msp,
+        "Conceptual draft generated from YAML. Validate controls and safety details before design issue.",
+        title_panel[0] + 1.1,
+        title_panel[1] + title_panel[3] - max(text_cfg["small_height"] * 3.0, 3.0),
+        max(text_cfg["small_height"] * 0.95, 1.0),
+        layer=notes_layer,
+        align="TOP_LEFT",
+    )
+
+
+def _prepare_controls_sheet_context(spec: dict[str, Any]) -> dict[str, Any]:
+    """Build the rendering context needed for the controls sheet."""
+    doc = ezdxf.new(setup=True)
+    ensure_layers(doc, spec)
+    layers = _resolve_sheet_layers(doc)
+    if layers["control"] not in doc.layers:
+        ensure_layer(doc, layers["control"], color=1, linetype="DASHDOT")
+
+    x_min, y_min, x_max, y_max = get_modelspace_extent(spec)
+    width = max(x_max - x_min, 200.0)
+    height = max(y_max - y_min, 130.0)
+    return {
+        "doc": doc,
+        "msp": doc.modelspace(),
+        "layers": layers,
+        "text_cfg": get_text_config(spec),
+        "layout_cfg": get_layout_config(spec),
+        "x_min": x_min,
+        "y_min": y_min,
+        "x_max": x_min + width,
+        "y_max": y_min + height,
+        "width": width,
+        "height": height,
+    }
+
+
+def _draw_controls_header(
+    msp: Any,
+    spec_path: str | Path,
+    text_cfg: dict[str, float],
+    text_layer: str,
+    notes_layer: str,
+    x_min: float,
+    y_min: float,
+    y_max: float,
+    width: float,
+    height: float,
+    margin: float,
+) -> dict[str, float]:
+    """Draw the controls-sheet border, heading, and table frame."""
+    add_box(msp, x_min, y_min, width, height, notes_layer)
+    add_text(
+        msp,
+        "Sheet 2 - Controls and Interlocks",
+        x_min + margin,
+        y_max - margin * 0.6,
+        text_cfg["title_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+    add_text(
+        msp,
+        f"Generated from {Path(spec_path).name}",
+        x_min + margin,
+        y_max - margin * 1.7,
+        text_cfg["subtitle_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+
+    table_x = x_min + margin
+    table_w = width - 2 * margin
+    table_top = y_max - margin * 3.4
+    table_h = height * 0.52
+    table_y = table_top - table_h
+    add_box(msp, table_x, table_y, table_w, table_h, notes_layer)
+
+    col_measure = table_x + table_w * 0.06
+    col_ctrl = table_x + table_w * 0.44
+    col_final = table_x + table_w * 0.72
+    add_text(
+        msp,
+        "Measurement",
+        col_measure,
+        table_top - 1.3,
+        text_cfg["body_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+    add_text(
+        msp,
+        "Controller/Logic",
+        col_ctrl,
+        table_top - 1.3,
+        text_cfg["body_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+    add_text(
+        msp,
+        "Final Element",
+        col_final,
+        table_top - 1.3,
+        text_cfg["body_height"],
+        layer=text_layer,
+        align="TOP_LEFT",
+    )
+    msp.add_line((col_ctrl - 2.0, table_y), (col_ctrl - 2.0, table_top), dxfattribs={"layer": notes_layer})
+    msp.add_line((col_final - 2.0, table_y), (col_final - 2.0, table_top), dxfattribs={"layer": notes_layer})
+    return {
+        "table_x": table_x,
+        "table_y": table_y,
+        "table_w": table_w,
+        "table_h": table_h,
+        "table_top": table_top,
+        "col_measure": col_measure,
+        "col_ctrl": col_ctrl,
+        "col_final": col_final,
+    }
+
+
+def _draw_controls_rows(
+    msp: Any,
+    loops: list[dict[str, Any]],
+    text_cfg: dict[str, float],
+    layout_cfg: dict[str, Any],
+    text_layer: str,
+    control_layer: str,
+    table: dict[str, float],
+    bubble_radius: float,
+) -> None:
+    """Render the control-loop summary rows."""
+    row_h = max(text_cfg["small_height"] * layout_cfg["controls_row_height_scale"], 8.0)
+    usable_rows = max(int((table["table_h"] - 4.0) / row_h), 1)
+    bubble_r = max(bubble_radius * 0.42, 0.7)
+    for i, loop in enumerate(loops[:usable_rows]):
+        y = table["table_top"] - 3.2 - i * row_h
+        measurement = str(loop.get("measurement", ""))
+        final = str(loop.get("final_element", ""))
+        loop_tag = str(loop.get("tag") or loop.get("id") or "")
+        desc = str(loop.get("description") or loop.get("note") or "")
+
+        msp.add_circle(
+            (table["col_measure"] - 1.5, y - 0.4), radius=bubble_r, dxfattribs={"layer": "instruments"}
+        )
+        add_text(
+            msp,
+            measurement,
+            table["col_measure"],
+            y,
+            text_cfg["small_height"],
+            layer=text_layer,
+            align="TOP_LEFT",
+        )
+        add_text(
+            msp, loop_tag, table["col_ctrl"], y, text_cfg["small_height"], layer=text_layer, align="TOP_LEFT"
+        )
+        add_text(
+            msp, final, table["col_final"], y, text_cfg["small_height"], layer=text_layer, align="TOP_LEFT"
+        )
+        if desc:
+            add_text(
+                msp,
+                desc,
+                table["col_ctrl"],
+                y - 1.9,
+                text_cfg["small_height"] * 0.9,
+                layer=text_layer,
+                align="TOP_LEFT",
+            )
+
+        add_arrow(
+            msp,
+            (table["col_measure"] + 8.5, y - 0.5),
+            (table["col_ctrl"] - 3.2, y - 0.5),
+            control_layer,
+            arrow_size=1.0,
+        )
+        add_arrow(
+            msp,
+            (table["col_ctrl"] + 9.2, y - 0.5),
+            (table["col_final"] - 3.2, y - 0.5),
+            control_layer,
+            arrow_size=1.0,
+        )
+
+    if len(loops) > usable_rows:
+        add_text(
+            msp,
+            f"... {len(loops) - usable_rows} additional loops truncated",
+            table["table_x"] + 1.0,
+            table["table_y"] + 1.0,
+            text_cfg["small_height"],
+            layer=text_layer,
+            align="BOTTOM_LEFT",
+        )
+
+
+def _draw_controls_panels(
+    msp: Any,
+    spec: dict[str, Any],
+    text_cfg: dict[str, float],
+    text_layer: str,
+    notes_layer: str,
+    table: dict[str, float],
+    y_min: float,
+    margin: float,
+) -> None:
+    """Render the interlock summary and instrument index panels."""
+    lower_y = y_min + margin
+    lower_h = table["table_y"] - lower_y - margin
+    left_w = table["table_w"] * 0.58
+    right_w = table["table_w"] - left_w - margin
+    interlock_lines = [
+        f'{i.get("id", "")}: {i.get("trigger", "")} -> {i.get("action", "")}'
+        for i in spec.get("interlocks", [])
+    ]
+    add_text_panel(
+        msp,
+        table["table_x"],
+        lower_y,
+        left_w,
+        lower_h,
+        "Interlock Summary",
+        interlock_lines,
+        text_cfg["small_height"],
+        text_layer,
+        notes_layer,
+        max_chars=72,
+    )
+
+    inst_lines = [
+        f'{str(ins.get("tag") or ins.get("id") or "")}: {str(ins.get("service", "")).strip()}'
+        for ins in spec.get("instruments", [])
+    ]
+    add_text_panel(
+        msp,
+        table["table_x"] + left_w + margin,
+        lower_y,
+        right_w,
+        lower_h,
+        "Instrument Index",
+        inst_lines,
+        text_cfg["small_height"],
+        text_layer,
+        notes_layer,
+        max_chars=38,
+    )
+
+
+def _save_sheet(
+    doc: Any,
+    spec: dict[str, Any],
+    out_path: str | Path,
+    svg_path: str | Path | None,
+    fallback_extent: tuple[float, float, float, float],
+) -> None:
+    """Persist a generated sheet and attempt SVG export."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.saveas(out_path)
+    export_svg_from_dxf(spec, out_path, svg_path, fallback_extent=fallback_extent)
+    logger.info("Created: %s", out_path)
+    if svg_path:
+        logger.info("Attempted SVG: %s", svg_path)
+
+
 def generate_process_sheet(
     spec_path: str | Path,
     out_path: str | Path,
@@ -461,153 +919,56 @@ def generate_process_sheet(
     else:
         spec = deepcopy(prepared_spec)
 
-    doc = ezdxf.new(setup=True)
-    ensure_layers(doc, spec)
-    msp = doc.modelspace()
-    t = get_text_config(spec)
-    layout_regions = compute_layout_regions(spec)
-    layout_cfg = layout_regions["layout_cfg"]
-    equipment_bbox = layout_regions["equipment_bbox"]
-    x_min, y_min, x_max, y_max = layout_regions["canvas_bbox"]
-    eq_min_x, eq_min_y, eq_max_x, eq_max_y = equipment_bbox
-
-    layer_index = {layer.dxf.name.lower(): layer.dxf.name for layer in doc.layers}
-    text_layer = layer_name(layer_index, "TEXT", "annotations", "titleblock", default="TEXT")
-    notes_layer = layer_name(layer_index, "NOTES", "annotations", default=text_layer)
-    instrument_layer = layer_name(layer_index, "INSTRUMENTS", "instruments", default="INSTRUMENTS")
-    leader_layer = layer_name(layer_index, "LEADERS", default="LEADERS")
-    arrow_size = to_float(spec.get("defaults", {}).get("arrow_size"), max(t["small_height"] * 1.2, 1.2))
-    bubble_radius = to_float(
-        spec.get("defaults", {}).get("instrument_bubble_radius"), max(t["small_height"] * 0.9, 1.0)
-    )
-    stream_label_scale = layout_cfg["stream_label_scale"]
-    stream_label_leaders = layout_cfg["stream_label_leaders"]
-    instrument_spacing = bubble_radius * layout_cfg["instrument_spacing_factor"]
-
+    ctx = _prepare_process_sheet_context(spec)
+    doc = ctx["doc"]
+    msp = ctx["msp"]
+    t = ctx["text_cfg"]
+    layout_regions = ctx["layout_regions"]
+    layout_cfg = ctx["layout_cfg"]
+    layers = ctx["layers"]
     spec["instruments"] = spread_instrument_positions(
-        spec.get("instruments", []), min_spacing=instrument_spacing
+        spec.get("instruments", []), min_spacing=ctx["instrument_spacing"]
     )
-
-    label_placer = LabelPlacer()
-    for eq in spec.get("equipment", []):
-        x = to_float(eq.get("x", 0.0))
-        y = to_float(eq.get("y", 0.0))
-        w, h = equipment_dims(eq)
-        label_placer.reserve_rect((x, y, x + w, y + h))
-    for _, panel in layout_regions["panels"].items():
-        px, py, pw, ph = panel
-        label_placer.reserve_rect((px, py, px + pw, py + ph))
-
-    add_box(msp, x_min, y_min, x_max - x_min, y_max - y_min, notes_layer)
-    add_box(
+    label_placer = _build_process_label_placer(spec, layout_regions)
+    equipment_bbox = _draw_process_frame(msp, spec, t, layout_regions, layers["text"], layers["notes"])
+    equipment_by_id = _draw_process_equipment(msp, spec, t, layout_cfg, layers["text"], layers["notes"])
+    instrument_by_id = _draw_process_instruments(
         msp,
-        eq_min_x - 2.0,
-        eq_min_y - 2.0,
-        (eq_max_x - eq_min_x) + 4.0,
-        (eq_max_y - eq_min_y) + 4.0,
-        notes_layer,
+        spec,
+        t,
+        layout_cfg,
+        layers["instrument"],
+        layers["text"],
+        ctx["bubble_radius"],
+        label_placer,
     )
-
-    add_title_block(msp, spec, t, text_layer, notes_layer, layout_regions["panels"]["title"])
-
-    project = get_project(spec)
-    doc_title = project.get("document_title") or project.get("title") or "Process and Instrumentation Diagram"
-    subtitle = project.get("subtitle") or "Conceptual process arrangement"
-    add_text(
+    stream_points = _draw_process_streams(
         msp,
-        doc_title,
-        (eq_min_x + eq_max_x) / 2,
-        eq_max_y + max(t["title_height"] * 0.9, 3.0),
-        t["title_height"],
-        layer=text_layer,
+        spec,
+        t,
+        layout_cfg,
+        layers["text"],
+        layers["leader"],
+        equipment_by_id,
+        ctx["arrow_size"],
+        label_placer,
     )
-    add_text(
-        msp,
-        subtitle,
-        (eq_min_x + eq_max_x) / 2,
-        eq_max_y + max(t["title_height"] * 0.1, 1.3),
-        max(t["subtitle_height"] * 0.95, 1.2),
-        layer=text_layer,
-    )
-
-    equipment_by_id = {eq.get("id"): eq for eq in spec.get("equipment", []) if eq.get("id")}
-    for eq in spec.get("equipment", []):
-        add_equipment(
-            msp,
-            eq,
-            t["body_height"],
-            text_layer=text_layer,
-            notes_layer=notes_layer,
-            show_inline_notes=layout_cfg["show_inline_equipment_notes"],
-        )
-
-    instrument_by_id = {ins.get("id"): ins for ins in spec.get("instruments", []) if ins.get("id")}
-    for ins in spec.get("instruments", []):
-        add_instrument(
-            msp,
-            ins,
-            text_h=t["small_height"],
-            text_layer=text_layer,
-            default_layer=instrument_layer,
-            radius=bubble_radius,
-            show_number_suffix=layout_cfg["show_instrument_suffix"],
-            label_placer=label_placer,
-        )
-
-    stream_points: dict[str, tuple[float, float]] = {}
-    for stream in spec.get("streams", []):
-        try:
-            stream_point = add_stream(
-                msp,
-                stream,
-                text_h=t["small_height"],
-                text_layer=text_layer,
-                equipment_by_id=equipment_by_id,
-                arrow_size=arrow_size,
-                label_scale=stream_label_scale,
-                label_placer=label_placer,
-                draw_label_leader=stream_label_leaders,
-                leader_layer=leader_layer,
-            )
-            stream_id = stream.get("id")
-            if stream_id and stream_point:
-                stream_points[stream_id] = stream_point
-        except Exception as exc:
-            logger.warning("Skipped stream %s: %s", stream.get("id", "<unknown>"), exc)
-
     add_control_loops(
         msp,
         spec,
         text_h=t["small_height"],
-        text_layer=text_layer,
+        text_layer=layers["text"],
         equipment_by_id=equipment_by_id,
         instrument_by_id=instrument_by_id,
         stream_points=stream_points,
         process_bbox=equipment_bbox,
         show_loop_tags=layout_cfg["show_control_tags_on_lines"],
     )
-
-    add_notes(msp, spec, t, text_layer=text_layer, notes_layer=notes_layer, layout_regions=layout_regions)
-    add_text(
-        msp,
-        "Conceptual draft generated from YAML. Validate controls and safety details before design issue.",
-        layout_regions["panels"]["title"][0] + 1.1,
-        layout_regions["panels"]["title"][1]
-        + layout_regions["panels"]["title"][3]
-        - max(t["small_height"] * 3.0, 3.0),
-        max(t["small_height"] * 0.95, 1.0),
-        layer=notes_layer,
-        align="TOP_LEFT",
+    add_notes(
+        msp, spec, t, text_layer=layers["text"], notes_layer=layers["notes"], layout_regions=layout_regions
     )
-
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    doc.saveas(out_path)
-    export_svg_from_dxf(spec, out_path, svg_path, fallback_extent=(x_min, y_min, x_max, y_max))
-
-    logger.info("Created: %s", out_path)
-    if svg_path:
-        logger.info("Attempted SVG: %s", svg_path)
+    _add_process_disclaimer(msp, t, layout_regions, layers["notes"])
+    _save_sheet(doc, spec, out_path, svg_path, fallback_extent=tuple(layout_regions["canvas_bbox"]))
 
 
 def generate_controls_sheet(
@@ -629,156 +990,46 @@ def generate_controls_sheet(
         spec = prepare_spec(spec_path, profile)
     else:
         spec = deepcopy(prepared_spec)
-    doc = ezdxf.new(setup=True)
-    ensure_layers(doc, spec)
-    msp = doc.modelspace()
-
-    t = get_text_config(spec)
-    layout_cfg = get_layout_config(spec)
-    x_min, y_min, x_max, y_max = get_modelspace_extent(spec)
-    width = max(x_max - x_min, 200.0)
-    height = max(y_max - y_min, 130.0)
-    x_max = x_min + width
-    y_max = y_min + height
-
-    layer_index = {layer.dxf.name.lower(): layer.dxf.name for layer in doc.layers}
-    text_layer = layer_name(layer_index, "TEXT", "annotations", "titleblock", default="TEXT")
-    notes_layer = layer_name(layer_index, "NOTES", "annotations", default=text_layer)
-    control_layer = layer_name(layer_index, "control_lines", default="control_lines")
-    if control_layer not in doc.layers:
-        ensure_layer(doc, control_layer, color=1, linetype="DASHDOT")
-
+    ctx = _prepare_controls_sheet_context(spec)
+    doc = ctx["doc"]
+    msp = ctx["msp"]
+    t = ctx["text_cfg"]
+    layout_cfg = ctx["layout_cfg"]
+    layers = ctx["layers"]
     margin = 8.0
-    add_box(msp, x_min, y_min, width, height, notes_layer)
-    add_text(
+    table = _draw_controls_header(
         msp,
-        "Sheet 2 - Controls and Interlocks",
-        x_min + margin,
-        y_max - margin * 0.6,
-        t["title_height"],
-        layer=text_layer,
-        align="TOP_LEFT",
+        spec_path,
+        t,
+        layers["text"],
+        layers["notes"],
+        ctx["x_min"],
+        ctx["y_min"],
+        ctx["y_max"],
+        ctx["width"],
+        ctx["height"],
+        margin,
     )
-    add_text(
-        msp,
-        f"Generated from {Path(spec_path).name}",
-        x_min + margin,
-        y_max - margin * 1.7,
-        t["subtitle_height"],
-        layer=text_layer,
-        align="TOP_LEFT",
-    )
-
-    table_x = x_min + margin
-    table_w = width - 2 * margin
-    table_top = y_max - margin * 3.4
-    table_h = height * 0.52
-    table_y = table_top - table_h
-    add_box(msp, table_x, table_y, table_w, table_h, notes_layer)
-
-    col_measure = table_x + table_w * 0.06
-    col_ctrl = table_x + table_w * 0.44
-    col_final = table_x + table_w * 0.72
-    add_text(
-        msp, "Measurement", col_measure, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT"
-    )
-    add_text(
-        msp,
-        "Controller/Logic",
-        col_ctrl,
-        table_top - 1.3,
-        t["body_height"],
-        layer=text_layer,
-        align="TOP_LEFT",
-    )
-    add_text(
-        msp, "Final Element", col_final, table_top - 1.3, t["body_height"], layer=text_layer, align="TOP_LEFT"
-    )
-    msp.add_line((col_ctrl - 2.0, table_y), (col_ctrl - 2.0, table_top), dxfattribs={"layer": notes_layer})
-    msp.add_line((col_final - 2.0, table_y), (col_final - 2.0, table_top), dxfattribs={"layer": notes_layer})
-
     loops = spec.get("control_loops", [])
-    row_h = max(t["small_height"] * layout_cfg["controls_row_height_scale"], 8.0)
-    usable_rows = max(int((table_h - 4.0) / row_h), 1)
-    bubble_r = max(to_float(spec.get("defaults", {}).get("instrument_bubble_radius"), 1.6) * 0.42, 0.7)
-    for i, loop in enumerate(loops[:usable_rows]):
-        y = table_top - 3.2 - i * row_h
-        measurement = str(loop.get("measurement", ""))
-        final = str(loop.get("final_element", ""))
-        loop_tag = str(loop.get("tag") or loop.get("id") or "")
-        desc = str(loop.get("description") or loop.get("note") or "")
-
-        msp.add_circle((col_measure - 1.5, y - 0.4), radius=bubble_r, dxfattribs={"layer": "instruments"})
-        add_text(msp, measurement, col_measure, y, t["small_height"], layer=text_layer, align="TOP_LEFT")
-        add_text(msp, loop_tag, col_ctrl, y, t["small_height"], layer=text_layer, align="TOP_LEFT")
-        add_text(msp, final, col_final, y, t["small_height"], layer=text_layer, align="TOP_LEFT")
-        if desc:
-            add_text(
-                msp, desc, col_ctrl, y - 1.9, t["small_height"] * 0.9, layer=text_layer, align="TOP_LEFT"
-            )
-
-        add_arrow(msp, (col_measure + 8.5, y - 0.5), (col_ctrl - 3.2, y - 0.5), control_layer, arrow_size=1.0)
-        add_arrow(msp, (col_ctrl + 9.2, y - 0.5), (col_final - 3.2, y - 0.5), control_layer, arrow_size=1.0)
-
-    if len(loops) > usable_rows:
-        add_text(
-            msp,
-            f"... {len(loops) - usable_rows} additional loops truncated",
-            table_x + 1.0,
-            table_y + 1.0,
-            t["small_height"],
-            layer=text_layer,
-            align="BOTTOM_LEFT",
-        )
-
-    interlocks = spec.get("interlocks", [])
-    lower_y = y_min + margin
-    lower_h = table_y - lower_y - margin
-    left_w = table_w * 0.58
-    right_w = table_w - left_w - margin
-    interlock_lines = [
-        f'{i.get("id", "")}: {i.get("trigger", "")} -> {i.get("action", "")}' for i in interlocks
-    ]
-    add_text_panel(
+    controls_bubble_radius = max(to_float(spec.get("defaults", {}).get("instrument_bubble_radius"), 1.6), 1.6)
+    _draw_controls_rows(
         msp,
-        table_x,
-        lower_y,
-        left_w,
-        lower_h,
-        "Interlock Summary",
-        interlock_lines,
-        t["small_height"],
-        text_layer,
-        notes_layer,
-        max_chars=72,
+        loops,
+        t,
+        layout_cfg,
+        layers["text"],
+        layers["control"],
+        table,
+        controls_bubble_radius,
     )
-
-    inst_lines: list[str] = []
-    for ins in spec.get("instruments", []):
-        tag = str(ins.get("tag") or ins.get("id") or "")
-        service = str(ins.get("service", "")).strip()
-        inst_lines.append(f"{tag}: {service}")
-    add_text_panel(
-        msp,
-        table_x + left_w + margin,
-        lower_y,
-        right_w,
-        lower_h,
-        "Instrument Index",
-        inst_lines,
-        t["small_height"],
-        text_layer,
-        notes_layer,
-        max_chars=38,
+    _draw_controls_panels(msp, spec, t, layers["text"], layers["notes"], table, ctx["y_min"], margin)
+    _save_sheet(
+        doc,
+        spec,
+        out_path,
+        svg_path,
+        fallback_extent=(ctx["x_min"], ctx["y_min"], ctx["x_max"], ctx["y_max"]),
     )
-
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    doc.saveas(out_path)
-    export_svg_from_dxf(spec, out_path, svg_path, fallback_extent=(x_min, y_min, x_max, y_max))
-    logger.info("Created: %s", out_path)
-    if svg_path:
-        logger.info("Attempted SVG: %s", svg_path)
 
 
 # ---------------------------------------------------------------------------
