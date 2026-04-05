@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ezdxf
 import pytest
+from ezdxf.enums import TextEntityAlignment
 
 import programmatic_pid.generator as gen
 from programmatic_pid.control_loops import (
@@ -18,14 +19,19 @@ from programmatic_pid.control_loops import (
 from programmatic_pid.dxf_builder import (
     LabelPlacer,
     add_box,
+    add_equipment,
+    add_instrument,
     clamp,
     closest_point_on_rect,
     dedupe_points,
     ensure_layer,
+    ensure_layers,
     equipment_anchor,
     equipment_center,
     equipment_dims,
     equipment_side_anchors,
+    get_equipment_bounds,
+    layer_name,
     nearest_equipment_anchor,
     parse_alignment,
     rects_overlap,
@@ -199,10 +205,18 @@ class TestDxfBuilder:
         assert dist_sq >= 2.0**2 - 0.01
 
     def test_parse_alignment_string(self):
-        from ezdxf.enums import TextEntityAlignment
-
         assert parse_alignment("MIDDLE_CENTER") == TextEntityAlignment.MIDDLE_CENTER
         assert parse_alignment("TOP_LEFT") == TextEntityAlignment.TOP_LEFT
+
+    def test_parse_alignment_passthrough_and_wrap_non_string(self):
+        assert parse_alignment(TextEntityAlignment.BOTTOM_RIGHT) == TextEntityAlignment.BOTTOM_RIGHT
+        assert wrap_text_lines(12345, 4) == ["12345"]
+
+    def test_text_box_top_left_alignment(self):
+        x1, y1, x2, y2 = text_box("ABC", 10, 20, 2.0, "TOP_LEFT")
+        assert x1 == pytest.approx(10.0)
+        assert y2 == pytest.approx(20.0)
+        assert y1 < y2
 
     def test_add_box_negative_dims_raises(self):
         doc = ezdxf.new()
@@ -227,11 +241,91 @@ class TestDxfBuilder:
         ensure_layer(doc, "MY_LAYER", color=3)
         assert "MY_LAYER" in doc.layers
 
+    def test_ensure_layer_invalid_linetype_falls_back(self, monkeypatch):
+        doc = ezdxf.new()
+        original_new = doc.layers.new
+        calls = {"count": 0}
+
+        def flaky_new(name, dxfattribs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise ezdxf.DXFValueError("bad linetype")
+            return original_new(name=name, dxfattribs=dxfattribs)
+
+        monkeypatch.setattr(doc.layers, "new", flaky_new)
+        ensure_layer(doc, "SAFE_LAYER", color=3, linetype="NOT_A_REAL_LTYPE")
+        assert doc.layers.get("SAFE_LAYER").dxf.linetype == "CONTINUOUS"
+
+    def test_ensure_layers_and_layer_name_default(self):
+        doc = ezdxf.new(setup=True)
+        spec = _minimal_spec()
+        ensure_layers(doc, spec)
+        assert "TEXT" in doc.layers
+        assert "PROCESS" in doc.layers
+        assert layer_name({"process": "PROCESS"}, None, "", default="0") == "0"
+
+    def test_get_equipment_bounds_empty_spec_uses_default_canvas(self):
+        assert get_equipment_bounds({}) == (0.0, 0.0, 240.0, 160.0)
+
+    def test_add_equipment_inline_notes_and_add_instrument_suffix(self):
+        doc = ezdxf.new(setup=True)
+        ensure_layer(doc, "EQUIPMENT")
+        ensure_layer(doc, "TEXT")
+        ensure_layer(doc, "NOTES")
+        msp = doc.modelspace()
+        placer = LabelPlacer()
+
+        add_equipment(
+            msp,
+            {
+                "id": "EQ-1",
+                "type": "vertical_retort",
+                "x": 0,
+                "y": 0,
+                "width": 10,
+                "height": 12,
+                "service": "Dryer",
+                "notes": ["First note", "Second note"],
+                "zones": [{"name": "Zone 1", "y_frac": 0.5}],
+            },
+            text_h=1.2,
+            text_layer="TEXT",
+            notes_layer="NOTES",
+            show_inline_notes=True,
+        )
+        add_instrument(
+            msp,
+            {"id": "PT-101", "tag": "PT", "x": 2, "y": 2},
+            text_h=1.0,
+            text_layer="TEXT",
+            default_layer="INSTRUMENTS",
+            radius=1.2,
+            show_number_suffix=True,
+            label_placer=placer,
+        )
+
+        assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "EQ-1" for entity in msp)
+        assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "- First note" for entity in msp)
+        assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "101" for entity in msp)
+        assert placer.occupied
+
+    def test_add_equipment_zero_dimensions_is_noop(self):
+        doc = ezdxf.new(setup=True)
+        msp = doc.modelspace()
+        add_equipment(msp, {"id": "EQ-0", "x": 0, "y": 0, "width": 0, "height": 5}, 1.0, "TEXT", "NOTES")
+        assert list(msp) == []
+
 
 # --- stream_router.py ---
 
 
 class TestStreamRouter:
+    def test_add_stream_vertices_requires_two_points(self):
+        doc = ezdxf.new(setup=True)
+        msp = doc.modelspace()
+        stream = {"vertices": [(0, 0)], "label": "S1"}
+        assert add_stream(msp, stream, 1.5, "TEXT", {}, 1.0) is None
+
     def test_add_stream_with_vertices(self):
         doc = ezdxf.new(setup=True)
         ensure_layer(doc, "PROCESS", color=5)
@@ -261,6 +355,44 @@ class TestStreamRouter:
         msp = doc.modelspace()
         result = add_stream(msp, {}, 1.5, "TEXT", {}, 1.0)
         assert result is None
+
+    def test_add_stream_uses_name_when_label_blank(self):
+        doc = ezdxf.new(setup=True)
+        ensure_layer(doc, "PROCESS", color=5)
+        ensure_layer(doc, "TEXT", color=7)
+        msp = doc.modelspace()
+        stream = {"start": [0, 0], "end": [10, 0], "label": "", "name": "Feed", "layer": "PROCESS"}
+        add_stream(msp, stream, 1.5, "TEXT", {}, 1.0)
+        assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "Feed" for entity in msp)
+
+    def test_add_stream_label_dict_creates_missing_leader_layer(self):
+        doc = ezdxf.new(setup=True)
+        ensure_layer(doc, "PROCESS", color=5)
+        ensure_layer(doc, "TEXT", color=7)
+        msp = doc.modelspace()
+        placer = LabelPlacer()
+        placer.reserve_rect((4.0, 3.0, 8.0, 6.0))
+        stream = {
+            "from": {"point": [0, 0]},
+            "to": {"point": [10, 0]},
+            "waypoints": [[5, 5]],
+            "label": {"text": "Stream A", "x": 6, "y": 4},
+            "layer": "PROCESS",
+        }
+
+        add_stream(
+            msp,
+            stream,
+            text_h=1.5,
+            text_layer="TEXT",
+            equipment_by_id={},
+            arrow_size=1.0,
+            label_placer=placer,
+            draw_label_leader=True,
+        )
+
+        assert "LEADERS" in doc.layers
+        assert any(entity.dxftype() == "LINE" and entity.dxf.layer == "LEADERS" for entity in msp)
 
 
 # --- control_loops.py ---

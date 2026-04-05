@@ -42,3 +42,6 @@ known-first-party = ["programmatic_pid"]
 [tool.black]
 line-length = 110
 target-version = ["py311"]
+
+[tool.coverage.run]
+source = ["programmatic_pid"]
