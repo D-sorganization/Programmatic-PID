@@ -42,6 +42,11 @@ from programmatic_pid.dxf_builder import (
     wrap_text_lines,
 )
 from programmatic_pid.notes import add_notes, get_mass_balance_values
+from programmatic_pid.sheet_layout import (
+    draw_controls_header,
+    prepare_controls_sheet_context,
+    resolve_sheet_layers,
+)
 from programmatic_pid.stream_router import add_stream
 from programmatic_pid.validator import SpecValidationError, validate_spec
 
@@ -510,6 +515,14 @@ class TestGeneratorHelpers:
         with pytest.raises(ValueError, match="must not be None"):
             gen.generate_process_sheet("spec.yml", "")
 
+    def test_sheet_rendering_module_exists_while_generator_keeps_back_compat(self):
+        from programmatic_pid import sheet_rendering
+
+        assert callable(sheet_rendering.render_process_sheet)
+        assert callable(sheet_rendering.render_controls_sheet)
+        assert callable(gen.add_title_block)
+        assert callable(gen.export_svg_from_dxf)
+
     def test_backward_compat_imports(self):
         """All symbols previously in generator.py are still importable."""
         assert gen.SpecValidationError is SpecValidationError
@@ -519,3 +532,48 @@ class TestGeneratorHelpers:
         assert gen.add_notes is add_notes
         assert gen.LabelPlacer is LabelPlacer
         assert gen.to_float is to_float
+
+
+class TestSheetLayout:
+    def test_resolve_sheet_layers_defaults(self):
+        doc = ezdxf.new(setup=True)
+        layers = resolve_sheet_layers(doc)
+        assert layers["text"] == "TEXT"
+        assert layers["instrument"] == "INSTRUMENTS"
+        assert layers["control"] == "control_lines"
+
+    def test_prepare_controls_sheet_context_builds_expected_canvas(self):
+        spec = _minimal_spec()
+        ctx = prepare_controls_sheet_context(
+            spec,
+            text_cfg=gen.get_text_config(spec),
+            layout_cfg=gen.get_layout_config(spec),
+            modelspace_extent=gen.get_modelspace_extent(spec),
+        )
+        assert ctx["width"] >= 200.0
+        assert ctx["height"] >= 130.0
+        assert "control_lines" in ctx["doc"].layers
+
+    def test_draw_controls_header_returns_table_geometry(self):
+        spec = _minimal_spec()
+        ctx = prepare_controls_sheet_context(
+            spec,
+            text_cfg=gen.get_text_config(spec),
+            layout_cfg=gen.get_layout_config(spec),
+            modelspace_extent=gen.get_modelspace_extent(spec),
+        )
+        table = draw_controls_header(
+            ctx["msp"],
+            spec_name="example.yml",
+            text_cfg=ctx["text_cfg"],
+            text_layer=ctx["layers"]["text"],
+            notes_layer=ctx["layers"]["notes"],
+            x_min=ctx["x_min"],
+            y_min=ctx["y_min"],
+            y_max=ctx["y_max"],
+            width=ctx["width"],
+            height=ctx["height"],
+            margin=8.0,
+        )
+        assert table["table_w"] > 0
+        assert table["col_measure"] < table["col_ctrl"] < table["col_final"]

@@ -22,11 +22,13 @@
 ## Runtime Responsibilities
 
 - `validator.py` validates YAML spec structure and raises `SpecValidationError` for invalid inputs.
-- `generator.py` loads specs, applies profiles, computes layout, and orchestrates sheet generation.
+- `generator.py` loads specs, applies profiles, and keeps the public orchestration facade for sheet generation.
 - `dxf_builder.py` provides drawing primitives, geometry helpers, and layer utilities.
 - `stream_router.py` routes process streams between equipment anchors and handles labeling.
 - `control_loops.py` draws control-loop relationships and reference routing.
 - `notes.py` renders notes, mass balance values, and sheet annotations.
+- `sheet_layout.py` owns shared layer resolution plus the controls/interlocks sheet layout and summary rendering helpers.
+- `sheet_rendering.py` owns sheet-level rendering, DXF/SVG persistence, and the process-sheet drawing helpers that `generator.py` re-exports for backward compatibility.
 
 ## Configuration Model
 
