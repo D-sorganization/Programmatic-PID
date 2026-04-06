@@ -1,10 +1,10 @@
 name: CI Standard
+
 on:
-  repository_dispatch:
-    types: [fleet_ci_verify]
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,20 +12,19 @@ concurrency:
 
 jobs:
   quality-gate:
-    runs-on:
-  repository_dispatch:
-    types: [fleet_ci_verify] ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version:
-  repository_dispatch:
-    types: [fleet_ci_verify] "3.11" }
+      - uses: actions/checkout@v6
 
-      - name: Install Quality Tools
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install quality tools
         run: pip install ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
 
-      - name: Check Tool Version Consistency
+      - name: Check tool version consistency
         shell: bash
         run: |
           echo "Validating tool versions match .pre-commit-config.yaml..."
@@ -43,25 +42,23 @@ jobs:
           fi
           echo "All tool versions consistent"
 
-      - name: Lint (Ruff)
+      - name: Lint
         run: ruff check src/ tests/
 
-      - name: Check Formatting (Black)
+      - name: Check formatting
         run: black --check src/ tests/
 
-      - name: Install Runtime Dependencies
+      - name: Install runtime dependencies
         run: pip install -r requirements.txt
 
-      - name: Type Check (mypy)
-        # Baseline generation scripts are existing untyped code.
-        # Type hints will be added incrementally. Skipping strict mypy for now.
-        run: echo "mypy skipped - baseline scripts not yet typed (planned improvement)"
+      - name: Type check
+        run: echo "mypy skipped - baseline code not yet fully typed (planned improvement)"
         continue-on-error: true
 
-      - name: Security Scan (Bandit)
+      - name: Security scan
         run: bandit -r src/ tests/ -ll -ii
 
-      - name: Verify No Placeholders
+      - name: Verify no placeholders
         shell: bash
         run: |
           if grep -rE "TODO|FIXME" src/ tests/ --include="*.py"; then
@@ -70,46 +67,45 @@ jobs:
           fi
 
   security-scan:
-    runs-on:
-  repository_dispatch:
-    types: [fleet_ci_verify] ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version:
-  repository_dispatch:
-    types: [fleet_ci_verify] "3.11" }
-      - run: pip install pip-audit
-      - name: Audit Python Dependencies
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit python dependencies
         run: pip-audit -r requirements.txt --progress-spinner=off
 
   tests:
     needs: quality-gate
-    runs-on:
-  repository_dispatch:
-    types: [fleet_ci_verify] ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
-        python:
-  repository_dispatch:
-    types: [fleet_ci_verify] ["3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
         with:
-          python-version:
-  repository_dispatch:
-    types: [fleet_ci_verify] ${{ matrix.python }}
-      - name: Install Dependencies
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e . 2>/dev/null || true
-      - name: Run Tests
-        run: pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
-      - uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        if: env.CODECOV_TOKEN != ''
+          pip install -e .
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=programmatic_pid --cov-report=xml --cov-report=term-missing
+
+      - uses: codecov/codecov-action@v5
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
