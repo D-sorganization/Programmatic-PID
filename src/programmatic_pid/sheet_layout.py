@@ -242,7 +242,7 @@ def draw_controls_panels(
     left_w = table["table_w"] * 0.58
     right_w = table["table_w"] - left_w - margin
     interlock_lines = [
-        f'{i.get("id", "")}: {i.get("trigger", "")} -> {i.get("action", "")}'
+        f"{i.get('id', '')}: {i.get('trigger', '')} -> {i.get('action', '')}"
         for i in spec.get("interlocks", [])
     ]
     add_text_panel(
@@ -260,7 +260,7 @@ def draw_controls_panels(
     )
 
     inst_lines = [
-        f'{str(ins.get("tag") or ins.get("id") or "")}: {str(ins.get("service", "")).strip()}'
+        f"{str(ins.get('tag') or ins.get('id') or '')}: {str(ins.get('service', '')).strip()}"
         for ins in spec.get("instruments", [])
     ]
     add_text_panel(

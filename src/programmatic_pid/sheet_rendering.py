@@ -340,9 +340,7 @@ def render_process_sheet(
         spec.get("instruments", []), min_spacing=ctx["instrument_spacing"]
     )
     label_placer = _build_process_label_placer(spec, layout_regions)
-    equipment_bbox = _draw_process_frame(
-        msp, spec, text_cfg, layout_regions, layers["text"], layers["notes"]
-    )
+    equipment_bbox = _draw_process_frame(msp, spec, text_cfg, layout_regions, layers["text"], layers["notes"])
     equipment_by_id = _draw_process_equipment(
         msp, spec, text_cfg, layout_cfg, layers["text"], layers["notes"]
     )
