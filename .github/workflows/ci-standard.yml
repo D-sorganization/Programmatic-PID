@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   quality-gate:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
           fi
 
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -84,7 +84,7 @@ jobs:
 
   tests:
     needs: quality-gate
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 20
     strategy:
       matrix:
