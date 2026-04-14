@@ -1,4 +1,10 @@
 repos:
+  # Gitleaks - Fast secrets scanning
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+
   # Python formatter
   - repo: https://github.com/psf/black
     rev: 25.12.0
