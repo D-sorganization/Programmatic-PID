@@ -86,6 +86,8 @@ jobs:
     needs: quality-gate
     runs-on: self-hosted
     timeout-minutes: 20
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -105,7 +107,7 @@ jobs:
         run: pytest tests/ -v --cov=programmatic_pid --cov-report=xml --cov-report=term-missing
 
       - uses: codecov/codecov-action@v5
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: ${{ env.CODECOV_TOKEN != '' }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           fail_ci_if_error: false
