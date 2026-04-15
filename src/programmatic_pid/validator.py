@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -13,10 +14,27 @@ class SpecValidationError(ValueError):
 
 
 def _equipment_dims(eq: dict[str, Any]) -> tuple[float, float]:
-    """Return (width, height) for an equipment entry, avoiding circular import."""
-    from programmatic_pid.dxf_builder import to_float
+    """Return (width, height) for an equipment entry using strict spec parsing."""
 
-    return to_float(eq.get("w", eq.get("width", 0.0))), to_float(eq.get("h", eq.get("height", 0.0)))
+    eq_id = str(eq.get("id", "<unknown>"))
+    width = _strict_float(eq.get("w", eq.get("width")), f"equipment {eq_id} width")
+    height = _strict_float(eq.get("h", eq.get("height")), f"equipment {eq_id} height")
+    return width, height
+
+
+def _strict_float(value: Any, field_name: str) -> float:
+    """Parse a spec-authored number without falling back to plausible defaults."""
+    if isinstance(value, bool):
+        raise SpecValidationError(f"{field_name} must be numeric, got bool")
+    if value is None:
+        raise SpecValidationError(f"{field_name} is required")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise SpecValidationError(f"{field_name} must be numeric, got {value!r}") from exc
+    if not math.isfinite(parsed):
+        raise SpecValidationError(f"{field_name} must be finite, got {value!r}")
+    return parsed
 
 
 def validate_spec(spec: Any) -> None:
@@ -52,9 +70,13 @@ def validate_spec(spec: Any) -> None:
             errors.append(f"duplicate equipment id: {eq_id}")
         equipment_ids.add(eq_id)
 
-        w, h = _equipment_dims(eq)
-        if w <= 0 or h <= 0:
-            errors.append(f"equipment {eq_id} has non-positive width/height")
+        try:
+            w, h = _equipment_dims(eq)
+        except SpecValidationError as exc:
+            errors.append(str(exc))
+        else:
+            if w <= 0 or h <= 0:
+                errors.append(f"equipment {eq_id} has non-positive width/height")
 
     instrument_ids: set[str] = set()
     for ins in spec.get("instruments", []):

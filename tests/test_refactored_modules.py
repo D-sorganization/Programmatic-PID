@@ -116,6 +116,13 @@ class TestValidateSpec:
         with pytest.raises(SpecValidationError, match="non-positive"):
             validate_spec(spec)
 
+    @pytest.mark.parametrize("bad_value", ["wide", None, True, float("nan"), float("inf")])
+    def test_rejects_malformed_equipment_dimensions(self, bad_value):
+        spec = _minimal_spec()
+        spec["equipment"][0]["width"] = bad_value
+        with pytest.raises(SpecValidationError, match="equipment E-1 width"):
+            validate_spec(spec)
+
     def test_accepts_valid_spec(self):
         validate_spec(_minimal_spec())  # should not raise
 
