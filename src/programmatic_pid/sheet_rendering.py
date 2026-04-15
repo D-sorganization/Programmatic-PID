@@ -266,24 +266,21 @@ def _draw_process_streams(
     """Draw process streams and return resolved stream label anchor points."""
     stream_points: dict[str, tuple[float, float]] = {}
     for stream in spec.get("streams", []):
-        try:
-            stream_point = add_stream(
-                msp,
-                stream,
-                text_h=text_cfg["small_height"],
-                text_layer=text_layer,
-                equipment_by_id=equipment_by_id,
-                arrow_size=arrow_size,
-                label_scale=layout_cfg["stream_label_scale"],
-                label_placer=label_placer,
-                draw_label_leader=layout_cfg["stream_label_leaders"],
-                leader_layer=leader_layer,
-            )
-            stream_id = stream.get("id")
-            if stream_id and stream_point:
-                stream_points[stream_id] = stream_point
-        except Exception as exc:
-            logger.warning("Skipped stream %s: %s", stream.get("id", "<unknown>"), exc)
+        stream_point = add_stream(
+            msp,
+            stream,
+            text_h=text_cfg["small_height"],
+            text_layer=text_layer,
+            equipment_by_id=equipment_by_id,
+            arrow_size=arrow_size,
+            label_scale=layout_cfg["stream_label_scale"],
+            label_placer=label_placer,
+            draw_label_leader=layout_cfg["stream_label_leaders"],
+            leader_layer=leader_layer,
+        )
+        stream_id = stream.get("id")
+        if stream_id and stream_point:
+            stream_points[stream_id] = stream_point
     return stream_points
 
 

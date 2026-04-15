@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import ezdxf
+import pytest
 
 import programmatic_pid.generator as mod
+from programmatic_pid import sheet_rendering
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -129,3 +131,23 @@ def test_add_stream_draws_leader_line_when_displaced():
 
     leader_lines = [e for e in msp if e.dxftype() == "LINE" and e.dxf.layer == "LEADERS"]
     assert leader_lines, "Expected displaced label leader line on LEADERS layer"
+
+
+def test_process_stream_rendering_failures_propagate(monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("stream routing failed")
+
+    monkeypatch.setattr(sheet_rendering, "add_stream", boom)
+
+    with pytest.raises(RuntimeError, match="stream routing failed"):
+        sheet_rendering._draw_process_streams(
+            ezdxf.new(setup=True).modelspace(),
+            minimal_spec(),
+            {"small_height": 1.2},
+            {"stream_label_scale": 0.8, "stream_label_leaders": False},
+            "TEXT",
+            "LEADERS",
+            {"E-1": {}, "E-2": {}},
+            1.0,
+            mod.LabelPlacer(),
+        )
