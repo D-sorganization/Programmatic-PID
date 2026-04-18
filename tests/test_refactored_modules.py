@@ -34,13 +34,15 @@ from programmatic_pid.dxf_builder import (
     layer_name,
     nearest_equipment_anchor,
     parse_alignment,
-    TextEntityAlignment as DxfTextEntityAlignment,
     rects_overlap,
     resolve_endpoint,
     spread_instrument_positions,
     text_box,
     to_float,
     wrap_text_lines,
+)
+from programmatic_pid.dxf_builder import (
+    TextEntityAlignment as DxfTextEntityAlignment,
 )
 from programmatic_pid.notes import add_notes, get_mass_balance_values
 from programmatic_pid.sheet_layout import (

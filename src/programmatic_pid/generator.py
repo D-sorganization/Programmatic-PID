@@ -24,6 +24,7 @@ from programmatic_pid.control_loops import (  # noqa: F401
 )
 from programmatic_pid.dxf_builder import (  # noqa: F401
     LabelPlacer,
+    TextEntityAlignment,
     add_arrow,
     add_arrow_head,
     add_bin_symbol,
@@ -51,7 +52,6 @@ from programmatic_pid.dxf_builder import (  # noqa: F401
     layer_name,
     nearest_equipment_anchor,
     parse_alignment,
-    TextEntityAlignment,
     rects_overlap,
     resolve_endpoint,
     spread_instrument_positions,
