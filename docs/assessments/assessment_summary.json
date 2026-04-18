@@ -1,0 +1,211 @@
+{
+  "repository": "Programmatic-PID",
+  "assessment_date": "2026-04-18",
+  "run_at_utc": "2026-04-18T08:01:59.3750821Z",
+  "sync_status": "pull-blocked",
+  "sync_notes": "ff-only pull failed: fatal: couldn't find remote ref codex/issue-54-ci-workflow",
+  "overall_grade": "C",
+  "overall_score": 74,
+  "category_grades": [
+    {
+      "id": "A",
+      "name": "Architecture and Boundaries",
+      "grade": "B",
+      "score": 82,
+      "evidence": [
+        "41 tracked first-party files",
+        "10 files under source-like directories"
+      ],
+      "notes": "Assesses source organization and boundary clarity from tracked first-party layout."
+    },
+    {
+      "id": "B",
+      "name": "Build and Dependency Management",
+      "grade": "C",
+      "score": 72,
+      "evidence": [
+        "pyproject.toml",
+        "requirements.txt"
+      ],
+      "notes": "Assesses committed build, dependency, and tool configuration."
+    },
+    {
+      "id": "C",
+      "name": "Configuration and Environment Hygiene",
+      "grade": "C",
+      "score": 78,
+      "evidence": [
+        "pyproject.toml",
+        "requirements.txt"
+      ],
+      "notes": "Checks whether runtime and developer configuration is explicit."
+    },
+    {
+      "id": "D",
+      "name": "Contracts, Types, and Domain Modeling",
+      "grade": "B",
+      "score": 82,
+      "evidence": [
+        "src/programmatic_pid/control_loops.py",
+        "src/programmatic_pid/dxf_builder.py",
+        "src/programmatic_pid/generator.py",
+        "src/programmatic_pid/notes.py",
+        "src/programmatic_pid/sheet_rendering.py",
+        "src/programmatic_pid/stream_router.py",
+        "src/programmatic_pid/validator.py",
+        "tests/test_dxf_builder.py",
+        "tests/test_pid_generation.py",
+        "tests/test_pid_integration.py"
+      ],
+      "notes": "Design by Contract evidence includes validation, assertions, typed models, explicit raised errors, and invariants."
+    },
+    {
+      "id": "E",
+      "name": "Reliability and Error Handling",
+      "grade": "C",
+      "score": 76,
+      "evidence": [
+        "tests/__init__.py",
+        "tests/test_dxf_builder.py",
+        "tests/test_pid_generation.py",
+        "tests/test_pid_integration.py",
+        "tests/test_refactored_modules.py",
+        "src/programmatic_pid/control_loops.py",
+        "src/programmatic_pid/dxf_builder.py",
+        "src/programmatic_pid/generator.py",
+        "src/programmatic_pid/notes.py",
+        "src/programmatic_pid/sheet_rendering.py"
+      ],
+      "notes": "Reliability is graded from test presence plus explicit validation/error-handling signals."
+    },
+    {
+      "id": "F",
+      "name": "Function, Module Size, and SRP",
+      "grade": "C",
+      "score": 70,
+      "evidence": [
+        "src/programmatic_pid/dxf_builder.py (651 lines)",
+        "tests/test_dxf_builder.py (621 lines)",
+        "tests/test_refactored_modules.py (592 lines)",
+        "src/programmatic_pid/stream_router.py (coarse avg 115 lines/definition)"
+      ],
+      "notes": "Evaluates function size, script/module size, and single responsibility using static size signals."
+    },
+    {
+      "id": "G",
+      "name": "Testing and TDD Posture",
+      "grade": "B",
+      "score": 82,
+      "evidence": [
+        "tests/__init__.py",
+        "tests/test_dxf_builder.py",
+        "tests/test_pid_generation.py",
+        "tests/test_pid_integration.py",
+        "tests/test_refactored_modules.py",
+        "tests/test_stream_router.py"
+      ],
+      "notes": "TDD history cannot be confirmed statically; grade reflects committed automated test posture."
+    },
+    {
+      "id": "H",
+      "name": "CI/CD and Automation",
+      "grade": "C",
+      "score": 78,
+      "evidence": [
+        ".github/workflows/ci-standard.yml"
+      ],
+      "notes": "Checks for tracked CI/CD workflow files."
+    },
+    {
+      "id": "I",
+      "name": "Security and Secret Hygiene",
+      "grade": "B",
+      "score": 82,
+      "evidence": [],
+      "notes": "Secret scan is regex-based; findings require manual confirmation."
+    },
+    {
+      "id": "J",
+      "name": "Documentation and Onboarding",
+      "grade": "B",
+      "score": 82,
+      "evidence": [
+        "AGENTS.md",
+        "README.md",
+        "SPEC.md",
+        "docs/assessments/A-N_Assessment_2026-04-02.md",
+        "docs/assessments/A-N_Assessment_2026-04-04.md",
+        "docs/assessments/A-N_Assessment_2026-04-09.md",
+        "docs/assessments/A-N_Assessment_2026-04-10.md",
+        "docs/assessments/A-N_Assessment_2026-04-11.md",
+        "docs/design_reviews/Deep_Dive_Model_Review.md",
+        "docs/design_reviews/grant_biochar_review.md",
+        "docs/development/.gitkeep",
+        "docs/development/Updated_Overview.md"
+      ],
+      "notes": "Checks docs, README, onboarding, and release documents."
+    },
+    {
+      "id": "K",
+      "name": "Maintainability, DRY, and Duplication",
+      "grade": "B",
+      "score": 80,
+      "evidence": [],
+      "notes": "DRY is assessed through duplicate filename clusters and TODO/FIXME density as static heuristics."
+    },
+    {
+      "id": "L",
+      "name": "API Surface and Law of Demeter",
+      "grade": "D",
+      "score": 68,
+      "evidence": [
+        "src/programmatic_pid/sheet_layout.py"
+      ],
+      "notes": "Law of Demeter is approximated with deep member-chain hints; confirmed violations require semantic review."
+    },
+    {
+      "id": "M",
+      "name": "Observability and Operability",
+      "grade": "F",
+      "score": 55,
+      "evidence": [],
+      "notes": "Checks for logging, metrics, monitoring, and operational artifacts."
+    },
+    {
+      "id": "N",
+      "name": "Governance, Licensing, and Release Hygiene",
+      "grade": "F",
+      "score": 52,
+      "evidence": [],
+      "notes": "Checks ownership, release, contribution, security, and license metadata."
+    }
+  ],
+  "key_risks": [
+    "Large modules/scripts reduce maintainability and SRP clarity."
+  ],
+  "recommendations": [
+    "Split the largest modules by responsibility and add characterization tests before refactoring."
+  ],
+  "issue_candidates": [
+    {
+      "title": "Split oversized modules by responsibility",
+      "severity": "medium",
+      "problem": "Oversized files found: src/programmatic_pid/dxf_builder.py (651 lines); tests/test_dxf_builder.py (621 lines); tests/test_refactored_modules.py (592 lines)",
+      "evidence": "Category F lists files over 500 lines or coarse long-definition signals.",
+      "impact": "Large modules obscure ownership, complicate review, and weaken SRP.",
+      "fix": "Add characterization tests, then split cohesive responsibilities into smaller modules.",
+      "acceptance": "Largest files are reduced or justified; extracted modules have focused tests.",
+      "refs": "SRP, function size, module size, maintainability"
+    }
+  ],
+  "coverage": {
+    "tracked_files": 41,
+    "code_files": 15,
+    "test_files": 6,
+    "ci_files": 1,
+    "config_files": 2,
+    "docs_files": 13,
+    "exclusions": "cache/build/vendor/virtualenv/temp/generated output directories excluded",
+    "static_limits": "TDD workflow history and confirmed Law of Demeter semantics require deeper review."
+  }
+}
