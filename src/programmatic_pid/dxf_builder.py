@@ -49,6 +49,7 @@ from programmatic_pid.dxf_symbols import (
 )
 from programmatic_pid.dxf_text import (
     LabelPlacer,
+    TextEntityAlignment,
     add_text,
     add_text_panel,
     parse_alignment,
@@ -72,6 +73,7 @@ __all__ = [
     "parse_alignment",
     "wrap_text_lines",
     "LabelPlacer",
+    "TextEntityAlignment",
     "add_text",
     "add_text_panel",
     # dxf_layer
