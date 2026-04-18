@@ -24,6 +24,7 @@ from programmatic_pid.control_loops import (  # noqa: F401
 )
 from programmatic_pid.dxf_builder import (  # noqa: F401
     LabelPlacer,
+    TextEntityAlignment,
     add_arrow,
     add_arrow_head,
     add_bin_symbol,

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import ezdxf
 import pytest
+from ezdxf.enums import TextEntityAlignment
+from ezdxf.enums import TextEntityAlignment
 
 import programmatic_pid.generator as gen
 from programmatic_pid.control_loops import (
@@ -21,6 +23,9 @@ from programmatic_pid.dxf_builder import (
     add_instrument,
     ensure_layer,
     to_float,
+)
+from programmatic_pid.dxf_builder import (
+    TextEntityAlignment as DxfTextEntityAlignment,
 )
 from programmatic_pid.notes import add_notes, get_mass_balance_values
 from programmatic_pid.sheet_layout import (
@@ -392,6 +397,8 @@ class TestGeneratorHelpers:
         assert gen.add_notes is add_notes
         assert gen.LabelPlacer is LabelPlacer
         assert gen.to_float is to_float
+        assert gen.TextEntityAlignment is TextEntityAlignment
+        assert gen.TextEntityAlignment is DxfTextEntityAlignment
 
 
 class TestSheetLayout:
