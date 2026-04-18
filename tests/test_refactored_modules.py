@@ -111,6 +111,26 @@ class TestValidateSpec:
     def test_accepts_valid_spec(self):
         validate_spec(_minimal_spec())  # should not raise
 
+    def test_accepts_control_loop_reference_to_stream_id(self):
+        spec = _minimal_spec()
+        spec["control_loops"][0]["measurement"] = "S-1"
+
+        validate_spec(spec)
+
+    def test_rejects_stream_endpoint_that_is_not_mapping(self):
+        spec = _minimal_spec()
+        spec["streams"][0]["from"] = "E-1"
+
+        with pytest.raises(SpecValidationError, match="stream S-1 from must be a mapping"):
+            validate_spec(spec)
+
+    def test_rejects_duplicate_stream_ids(self):
+        spec = _minimal_spec()
+        spec["streams"].append({"id": "S-1", "from": {"equipment": "E-1"}, "to": {"equipment": "E-2"}})
+
+        with pytest.raises(SpecValidationError, match="duplicate stream id: S-1"):
+            validate_spec(spec)
+
 
 # --- dxf_builder.py ---
 
@@ -289,6 +309,10 @@ class TestControlLoops:
         result = resolve_reference_point("E-1", eq_map, {}, {})
         assert result == (5.0, 5.0, "equipment")
 
+    def test_resolve_reference_point_stream(self):
+        result = resolve_reference_point("S-1", {}, {}, {"S-1": (12, 3)})
+        assert result == (12.0, 3.0, "stream")
+
     def test_resolve_reference_point_not_found(self):
         result = resolve_reference_point("NOPE", {}, {}, {})
         assert result is None
@@ -314,6 +338,29 @@ class TestControlLoops:
         add_control_loops(msp, spec, 1.5, "TEXT", eq_map, ins_map, {})
         entities = list(msp)
         assert len(entities) > 0
+
+    def test_add_control_loops_draws_stream_reference_and_tag(self):
+        spec = _minimal_spec()
+        spec["control_loops"][0].update({"measurement": "S-1", "tag": "FIC-1"})
+        doc = ezdxf.new(setup=True)
+        ensure_layer(doc, "TEXT")
+        msp = doc.modelspace()
+        eq_map = {"E-2": spec["equipment"][1]}
+
+        add_control_loops(
+            msp,
+            spec,
+            1.5,
+            "TEXT",
+            eq_map,
+            {},
+            {"S-1": (12.0, 3.0)},
+            show_loop_tags=True,
+        )
+
+        assert "control_lines" in doc.layers
+        assert any(entity.dxftype() == "LWPOLYLINE" and entity.dxf.layer == "control_lines" for entity in msp)
+        assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "FIC-1" for entity in msp)
 
 
 # --- notes.py ---

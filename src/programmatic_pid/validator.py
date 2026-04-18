@@ -88,20 +88,30 @@ def validate_spec(spec: Any) -> None:
             errors.append(f"duplicate instrument id: {ins_id}")
         instrument_ids.add(ins_id)
 
+    stream_ids: set[str] = set()
     for stream in spec.get("streams", []):
-        sid = stream.get("id", "<unknown>")
-        if "from" in stream:
-            fr = stream.get("from", {})
-            eq = fr.get("equipment")
-            if eq and eq not in equipment_ids:
-                errors.append(f"stream {sid} references unknown from equipment: {eq}")
-        if "to" in stream:
-            to = stream.get("to", {})
-            eq = to.get("equipment")
-            if eq and eq not in equipment_ids:
-                errors.append(f"stream {sid} references unknown to equipment: {eq}")
+        if not isinstance(stream, dict):
+            errors.append("stream entry must be a mapping")
+            continue
 
-    references = equipment_ids | instrument_ids
+        sid = stream.get("id", "<unknown>")
+        if sid and sid != "<unknown>":
+            if sid in stream_ids:
+                errors.append(f"duplicate stream id: {sid}")
+            stream_ids.add(sid)
+
+        for endpoint_name in ("from", "to"):
+            if endpoint_name not in stream:
+                continue
+            endpoint = stream.get(endpoint_name, {})
+            if not isinstance(endpoint, dict):
+                errors.append(f"stream {sid} {endpoint_name} must be a mapping")
+                continue
+            eq = endpoint.get("equipment")
+            if eq and eq not in equipment_ids:
+                errors.append(f"stream {sid} references unknown {endpoint_name} equipment: {eq}")
+
+    references = equipment_ids | instrument_ids | stream_ids
     for loop in spec.get("control_loops", []):
         lid = loop.get("id", "<unknown>")
         meas = loop.get("measurement")
