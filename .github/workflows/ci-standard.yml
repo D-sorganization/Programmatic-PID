@@ -25,22 +25,23 @@ jobs:
         run: pip install --force-reinstall ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
 
       - name: Check tool version consistency
-        shell: bash
+        shell: powershell
         run: |
-          echo "Validating tool versions match .pre-commit-config.yaml..."
-          if ! grep -q "rev: 25.12.0" .pre-commit-config.yaml; then
-            echo "::error::Black version mismatch between CI and pre-commit config"
+          Write-Host "Validating tool versions match .pre-commit-config.yaml..."
+          $preCommitConfig = Get-Content .pre-commit-config.yaml -Raw
+          if ($preCommitConfig -notmatch "rev:\s*25\.12\.0") {
+            Write-Error "Black version mismatch between CI and pre-commit config"
             exit 1
-          fi
-          if ! grep -q "rev: v0.14.10" .pre-commit-config.yaml; then
-            echo "::error::Ruff version mismatch between CI and pre-commit config"
+          }
+          if ($preCommitConfig -notmatch "rev:\s*v0\.14\.10") {
+            Write-Error "Ruff version mismatch between CI and pre-commit config"
             exit 1
-          fi
-          if ! grep -q "rev: v1.13.0" .pre-commit-config.yaml; then
-            echo "::error::MyPy version mismatch between CI and pre-commit config"
+          }
+          if ($preCommitConfig -notmatch "rev:\s*v1\.13\.0") {
+            Write-Error "MyPy version mismatch between CI and pre-commit config"
             exit 1
-          fi
-          echo "All tool versions consistent"
+          }
+          Write-Host "All tool versions consistent"
 
       - name: Lint
         run: ruff check src/ tests/
@@ -59,12 +60,13 @@ jobs:
         run: bandit -r src/ tests/ -ll -ii
 
       - name: Verify no placeholders
-        shell: bash
+        shell: powershell
         run: |
-          if grep -rE "TODO|FIXME" src/ tests/ --include="*.py"; then
-            echo "::error::Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
+          $matches = Get-ChildItem -Path src, tests -Recurse -Filter *.py | Select-String -Pattern "TODO|FIXME"
+          if ($matches) {
+            $matches
+            Write-Error "Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
             exit 1
-          fi
 
   security-scan:
     runs-on: self-hosted
