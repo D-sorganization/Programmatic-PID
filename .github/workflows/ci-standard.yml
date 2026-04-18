@@ -25,22 +25,7 @@ jobs:
         run: pip install --force-reinstall ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
 
       - name: Check tool version consistency
-        shell: bash
-        run: |
-          echo "Validating tool versions match .pre-commit-config.yaml..."
-          if ! grep -q "rev: 25.12.0" .pre-commit-config.yaml; then
-            echo "::error::Black version mismatch between CI and pre-commit config"
-            exit 1
-          fi
-          if ! grep -q "rev: v0.14.10" .pre-commit-config.yaml; then
-            echo "::error::Ruff version mismatch between CI and pre-commit config"
-            exit 1
-          fi
-          if ! grep -q "rev: v1.13.0" .pre-commit-config.yaml; then
-            echo "::error::MyPy version mismatch between CI and pre-commit config"
-            exit 1
-          fi
-          echo "All tool versions consistent"
+        run: python scripts/check_ci_policy.py tool-versions
 
       - name: Lint
         run: ruff check src/ tests/
@@ -59,12 +44,7 @@ jobs:
         run: bandit -r src/ tests/ -ll -ii
 
       - name: Verify no placeholders
-        shell: bash
-        run: |
-          if grep -rE "TODO|FIXME" src/ tests/ --include="*.py"; then
-            echo "::error::Unresolved TODOs/FIXMEs found. Create GitHub issues instead."
-            exit 1
-          fi
+        run: python scripts/check_ci_policy.py no-placeholders
 
   security-scan:
     runs-on: self-hosted
