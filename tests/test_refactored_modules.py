@@ -34,6 +34,7 @@ from programmatic_pid.dxf_builder import (
     layer_name,
     nearest_equipment_anchor,
     parse_alignment,
+    TextEntityAlignment as DxfTextEntityAlignment,
     rects_overlap,
     resolve_endpoint,
     spread_instrument_positions,
@@ -223,6 +224,10 @@ class TestDxfBuilder:
     def test_parse_alignment_passthrough_and_wrap_non_string(self):
         assert parse_alignment(TextEntityAlignment.BOTTOM_RIGHT) == TextEntityAlignment.BOTTOM_RIGHT
         assert wrap_text_lines(12345, 4) == ["12345"]
+
+    def test_text_entity_alignment_is_reexported(self):
+        assert DxfTextEntityAlignment is TextEntityAlignment
+        assert gen.TextEntityAlignment is TextEntityAlignment
 
     def test_text_box_top_left_alignment(self):
         x1, y1, x2, y2 = text_box("ABC", 10, 20, 2.0, "TOP_LEFT")
