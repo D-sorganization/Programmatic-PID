@@ -9,7 +9,6 @@ from __future__ import annotations
 import ezdxf
 import pytest
 from ezdxf.enums import TextEntityAlignment
-from ezdxf.enums import TextEntityAlignment
 
 import programmatic_pid.generator as gen
 from programmatic_pid.control_loops import (
