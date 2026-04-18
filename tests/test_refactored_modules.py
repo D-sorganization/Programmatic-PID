@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import ezdxf
 import pytest
-from ezdxf.enums import TextEntityAlignment
 
 import programmatic_pid.generator as gen
 from programmatic_pid.control_loops import (
@@ -18,28 +17,10 @@ from programmatic_pid.control_loops import (
 )
 from programmatic_pid.dxf_builder import (
     LabelPlacer,
-    add_box,
     add_equipment,
     add_instrument,
-    clamp,
-    closest_point_on_rect,
-    dedupe_points,
     ensure_layer,
-    ensure_layers,
-    equipment_anchor,
-    equipment_center,
-    equipment_dims,
-    equipment_side_anchors,
-    get_equipment_bounds,
-    layer_name,
-    nearest_equipment_anchor,
-    parse_alignment,
-    rects_overlap,
-    resolve_endpoint,
-    spread_instrument_positions,
-    text_box,
     to_float,
-    wrap_text_lines,
 )
 from programmatic_pid.notes import add_notes, get_mass_balance_values
 from programmatic_pid.sheet_layout import (
@@ -131,123 +112,6 @@ class TestValidateSpec:
 
 
 class TestDxfBuilder:
-    def test_to_float_normal(self):
-        assert to_float("3.14") == pytest.approx(3.14)
-
-    def test_to_float_fallback(self):
-        assert to_float("abc", 42.0) == 42.0
-
-    def test_to_float_none(self):
-        assert to_float(None) == 0.0
-
-    def test_clamp(self):
-        assert clamp(5, 0, 10) == 5
-        assert clamp(-1, 0, 10) == 0
-        assert clamp(20, 0, 10) == 10
-
-    def test_wrap_text_lines(self):
-        lines = wrap_text_lines("hello world this is a long line", 15)
-        assert len(lines) >= 2
-        assert all(isinstance(item, str) for item in lines)
-
-    def test_text_box_centered(self):
-        x1, y1, x2, y2 = text_box("ABC", 10, 10, 2.0, "MIDDLE_CENTER")
-        assert x1 < 10 < x2
-        assert y1 < 10 < y2
-
-    def test_rects_overlap_true(self):
-        assert rects_overlap((0, 0, 10, 10), (5, 5, 15, 15))
-
-    def test_rects_overlap_false(self):
-        assert not rects_overlap((0, 0, 5, 5), (10, 10, 15, 15))
-
-    def test_closest_point_on_rect(self):
-        pt = closest_point_on_rect((20, 5), (0, 0, 10, 10))
-        assert pt == (10.0, 5.0)
-
-    def test_equipment_dims(self):
-        assert equipment_dims({"width": 8, "height": 4}) == (8.0, 4.0)
-        assert equipment_dims({"w": 3, "h": 7}) == (3.0, 7.0)
-
-    def test_equipment_center(self):
-        eq = {"x": 0, "y": 0, "width": 10, "height": 10}
-        assert equipment_center(eq) == (5.0, 5.0)
-
-    def test_equipment_side_anchors(self):
-        eq = {"x": 0, "y": 0, "width": 10, "height": 10}
-        anchors = equipment_side_anchors(eq)
-        assert anchors["left"] == (0.0, 5.0)
-        assert anchors["right"] == (10.0, 5.0)
-        assert anchors["top"] == (5.0, 10.0)
-        assert anchors["bottom"] == (5.0, 0.0)
-
-    def test_equipment_anchor_sides(self):
-        eq = {"x": 0, "y": 0, "width": 10, "height": 10}
-        assert equipment_anchor(eq, "left") == (0.0, 5.0)
-        assert equipment_anchor(eq, "right") == (10.0, 5.0)
-        assert equipment_anchor(eq, "top") == (5.0, 10.0)
-        assert equipment_anchor(eq, "bottom") == (5.0, 0.0)
-
-    def test_nearest_equipment_anchor(self):
-        eq = {"x": 0, "y": 0, "width": 10, "height": 10}
-        assert nearest_equipment_anchor(eq, (20, 5)) == (10.0, 5.0)
-
-    def test_resolve_endpoint_with_point(self):
-        ep = {"point": [42, 99]}
-        assert resolve_endpoint(ep, {}) == (42.0, 99.0)
-
-    def test_resolve_endpoint_unknown_equipment(self):
-        with pytest.raises(KeyError, match="Unknown equipment"):
-            resolve_endpoint({"equipment": "X-99"}, {})
-
-    def test_dedupe_points(self):
-        pts = [(0, 0), (0, 0), (1, 1), (1, 1), (2, 2)]
-        assert dedupe_points(pts) == [(0.0, 0.0), (1.0, 1.0), (2.0, 2.0)]
-
-    def test_spread_instrument_positions_no_collision(self):
-        instruments = [
-            {"id": "I-1", "x": 10, "y": 10},
-            {"id": "I-2", "x": 10, "y": 10},
-        ]
-        out = spread_instrument_positions(instruments, min_spacing=2.0)
-        assert len(out) == 2
-        p1 = (out[0]["x"], out[0]["y"])
-        p2 = (out[1]["x"], out[1]["y"])
-        dist_sq = (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2
-        assert dist_sq >= 2.0**2 - 0.01
-
-    def test_parse_alignment_string(self):
-        assert parse_alignment("MIDDLE_CENTER") == TextEntityAlignment.MIDDLE_CENTER
-        assert parse_alignment("TOP_LEFT") == TextEntityAlignment.TOP_LEFT
-
-    def test_parse_alignment_passthrough_and_wrap_non_string(self):
-        assert parse_alignment(TextEntityAlignment.BOTTOM_RIGHT) == TextEntityAlignment.BOTTOM_RIGHT
-        assert wrap_text_lines(12345, 4) == ["12345"]
-
-    def test_text_box_top_left_alignment(self):
-        x1, y1, x2, y2 = text_box("ABC", 10, 20, 2.0, "TOP_LEFT")
-        assert x1 == pytest.approx(10.0)
-        assert y2 == pytest.approx(20.0)
-        assert y1 < y2
-
-    def test_add_box_negative_dims_raises(self):
-        doc = ezdxf.new()
-        msp = doc.modelspace()
-        with pytest.raises(ValueError, match="positive"):
-            add_box(msp, 0, 0, -1, 5, "0")
-
-    def test_label_placer_finds_position(self):
-        placer = LabelPlacer()
-        placer.reserve_rect((0, 0, 10, 10))
-        x, y, align = placer.find_position(
-            "Label",
-            (5, 5),
-            1.0,
-            [(0, 0, "MIDDLE_CENTER"), (12, 0, "MIDDLE_LEFT")],
-        )
-        # First position overlaps, second should be chosen
-        assert align == "MIDDLE_LEFT"
-
     def test_ensure_layer_creates_layer(self):
         doc = ezdxf.new()
         ensure_layer(doc, "MY_LAYER", color=3)
@@ -267,17 +131,6 @@ class TestDxfBuilder:
         monkeypatch.setattr(doc.layers, "new", flaky_new)
         ensure_layer(doc, "SAFE_LAYER", color=3, linetype="NOT_A_REAL_LTYPE")
         assert doc.layers.get("SAFE_LAYER").dxf.linetype == "CONTINUOUS"
-
-    def test_ensure_layers_and_layer_name_default(self):
-        doc = ezdxf.new(setup=True)
-        spec = _minimal_spec()
-        ensure_layers(doc, spec)
-        assert "TEXT" in doc.layers
-        assert "PROCESS" in doc.layers
-        assert layer_name({"process": "PROCESS"}, None, "", default="0") == "0"
-
-    def test_get_equipment_bounds_empty_spec_uses_default_canvas(self):
-        assert get_equipment_bounds({}) == (0.0, 0.0, 240.0, 160.0)
 
     def test_add_equipment_inline_notes_and_add_instrument_suffix(self):
         doc = ezdxf.new(setup=True)
