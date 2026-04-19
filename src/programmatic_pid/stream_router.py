@@ -51,7 +51,7 @@ def add_stream(
         verts = [tuple(v) for v in stream.get("vertices", [])]
         if len(verts) < 2:
             return None
-        add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)
+        add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)  # type: ignore[arg-type]
         lx = sum(v[0] for v in verts) / len(verts)
         ly = sum(v[1] for v in verts) / len(verts)
     elif "start" in stream and "end" in stream:
@@ -66,7 +66,7 @@ def add_stream(
         waypoints = [tuple(wp) for wp in stream.get("waypoints", [])]
         verts = [start, *waypoints, end]
         if len(verts) > 2:
-            add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)
+            add_poly_arrow(msp, verts, layer, color=color, arrow_size=arrow_size)  # type: ignore[arg-type]
             lx = sum(to_float(v[0]) for v in verts) / len(verts)
             ly = sum(to_float(v[1]) for v in verts) / len(verts)
         else:

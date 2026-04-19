@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import ezdxf
+from ezdxf import DXFValueError  # type: ignore[attr-defined]
 
 
 def ensure_layer(doc: Any, name: str, color: int = 7, linetype: str = "CONTINUOUS") -> None:
@@ -16,7 +17,7 @@ def ensure_layer(doc: Any, name: str, color: int = 7, linetype: str = "CONTINUOU
     attrs = {"color": int(color), "linetype": str(linetype)}
     try:
         doc.layers.new(name=name, dxfattribs=attrs)
-    except ezdxf.DXFValueError:
+    except DXFValueError:
         attrs["linetype"] = "CONTINUOUS"
         doc.layers.new(name=name, dxfattribs=attrs)
 

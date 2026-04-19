@@ -72,15 +72,19 @@ def add_notes(
         f"{loop.get('id', '')}: {loop.get('objective') or loop.get('description') or loop.get('note', '')}"
         for loop in loops
     ]
+    panel = panels["control"]
     add_text_panel(
         msp,
-        *panels["control"],
-        title="Key Control Loops",
-        lines=loop_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
+        panel[0],
+        panel[1],
+        panel[2],
+        panel[3],
+        "Key Control Loops",
+        loop_lines,
+        text_cfg["small_height"],
+        text_layer,
+        notes_layer,
+        max_chars,
     )
 
     wet_feed, feed_mc, dried_mc, char_wet, char_mc = get_mass_balance_values(spec)
@@ -97,15 +101,19 @@ def add_notes(
         f"Biochar product = {char_wet:.0f} kg/h wet",
         f"Dry-basis char yield = {dry_yield:.1f}%",
     ]
+    panel = panels["mass"]
     add_text_panel(
         msp,
-        *panels["mass"],
-        title="Approximate Mass Balance",
-        lines=mass_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
+        panel[0],
+        panel[1],
+        panel[2],
+        panel[3],
+        "Approximate Mass Balance",
+        mass_lines,
+        text_cfg["small_height"],
+        text_layer,
+        notes_layer,
+        max_chars,
     )
 
     design_notes = list(spec.get("annotations", {}).get("notes_panel", {}).get("bullets", []))
@@ -140,13 +148,17 @@ def add_notes(
         right_lines.append("Equipment Notes:")
         right_lines.extend(equipment_note_lines[:6])
 
+    panel = panels["right"]
     add_text_panel(
         msp,
-        *panels["right"],
-        title="Design and Safety Notes",
-        lines=right_lines,
-        text_h=text_cfg["small_height"],
-        text_layer=text_layer,
-        border_layer=notes_layer,
-        max_chars=max_chars,
+        panel[0],
+        panel[1],
+        panel[2],
+        panel[3],
+        "Design and Safety Notes",
+        right_lines,
+        text_cfg["small_height"],
+        text_layer,
+        notes_layer,
+        max_chars,
     )

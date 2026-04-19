@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import ezdxf
+from ezdxf import new  # type: ignore[attr-defined]
 
 from programmatic_pid.dxf_builder import (
     add_arrow,
@@ -37,7 +38,7 @@ def prepare_controls_sheet_context(
     modelspace_extent: tuple[float, float, float, float],
 ) -> dict[str, Any]:
     """Build the rendering context needed for the controls sheet."""
-    doc = ezdxf.new(setup=True)
+    doc = new(setup=True)
     ensure_layers(doc, spec)
     layers = resolve_sheet_layers(doc)
     if layers["control"] not in doc.layers:
