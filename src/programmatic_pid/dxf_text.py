@@ -9,6 +9,15 @@ from ezdxf.enums import TextEntityAlignment
 
 from programmatic_pid.dxf_math import rects_overlap, text_box, to_float
 
+__all__ = [
+    "TextEntityAlignment",
+    "parse_alignment",
+    "wrap_text_lines",
+    "LabelPlacer",
+    "add_text",
+    "add_text_panel",
+]
+
 
 def parse_alignment(align: Any) -> TextEntityAlignment:
     """Return a :class:`TextEntityAlignment` from a string or pass-through."""

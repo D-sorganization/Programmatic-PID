@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import ezdxf
+from ezdxf import new  # type: ignore[attr-defined]
 
 from programmatic_pid.control_loops import add_control_loops
 from programmatic_pid.dxf_builder import (
@@ -91,7 +92,7 @@ def export_svg_from_dxf(
     x_min, y_min, x_max, y_max = fallback_extent
     try:
         from ezdxf import recover
-        from ezdxf.addons.drawing import Frontend, RenderContext, layout, svg
+        from ezdxf.addons.drawing import Frontend, RenderContext, layout, svg  # type: ignore[attr-defined]
 
         audit_doc, auditor = recover.readfile(dxf_path)
         ctx = RenderContext(audit_doc)
@@ -119,7 +120,7 @@ def export_svg_from_dxf(
 def _prepare_process_sheet_context(spec: dict[str, Any]) -> dict[str, Any]:
     """Build the rendering context needed for the process sheet."""
     generator = _generator_facade()
-    doc = ezdxf.new(setup=True)
+    doc = new(setup=True)
     ensure_layers(doc, spec)
     layout_regions = generator.compute_layout_regions(spec)
     layout_cfg = layout_regions["layout_cfg"]
@@ -167,7 +168,7 @@ def _draw_process_frame(
     notes_layer: str,
 ) -> tuple[float, float, float, float]:
     """Draw the process-sheet page frame, title block, and main title."""
-    equipment_bbox = layout_regions["equipment_bbox"]
+    equipment_bbox: tuple[float, float, float, float] = layout_regions["equipment_bbox"]
     x_min, y_min, x_max, y_max = layout_regions["canvas_bbox"]
     eq_min_x, eq_min_y, eq_max_x, eq_max_y = equipment_bbox
 

@@ -148,19 +148,22 @@ def load_spec(path: str | Path) -> dict[str, Any]:
     if not path:
         raise ValueError("path must not be None or empty")
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        result = yaml.safe_load(f)
+        return result if isinstance(result, dict) else {}
 
 
 def get_project(spec: dict[str, Any]) -> dict[str, Any]:
     """Return the ``project`` section of *spec*."""
-    return spec.get("project", {})
+    result = spec.get("project", {})
+    return result if isinstance(result, dict) else {}
 
 
 def get_drawing(spec: dict[str, Any]) -> dict[str, Any]:
     """Return the ``drawing`` configuration from *spec*."""
     if "drawing" in spec and isinstance(spec["drawing"], dict):
         return spec["drawing"]
-    return get_project(spec).get("drawing", {})
+    result = get_project(spec).get("drawing", {})
+    return result if isinstance(result, dict) else {}
 
 
 def ensure_drawing(spec: dict[str, Any]) -> dict[str, Any]:
@@ -172,6 +175,7 @@ def ensure_drawing(spec: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(drawing, dict):
         drawing = {}
         project["drawing"] = drawing
+    assert isinstance(drawing, dict)
     return drawing
 
 
