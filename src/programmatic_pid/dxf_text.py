@@ -27,7 +27,7 @@ def parse_alignment(align: Any) -> TextEntityAlignment:
     return getattr(TextEntityAlignment, key, TextEntityAlignment.MIDDLE_CENTER)
 
 
-def wrap_text_lines(text: str, width: int) -> list[str]:
+def wrap_text_lines(text: Any, width: Any) -> list[str]:
     """Word-wrap *text* to *width* characters."""
     if not isinstance(text, str):
         text = str(text)
@@ -102,7 +102,7 @@ def add_text_panel(
     w: float,
     h: float,
     title: str,
-    lines: list[str],
+    lines: list[str | None],
     text_h: float,
     text_layer: str,
     border_layer: str,
