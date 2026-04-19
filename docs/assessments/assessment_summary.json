@@ -1,9 +1,9 @@
 {
   "repository": "Programmatic-PID",
-  "assessment_date": "2026-04-17",
-  "run_at_utc": "2026-04-17T08:01:19.6221680Z",
-  "sync_status": "pull-blocked",
-  "sync_notes": "ff-only pull failed: fatal: couldn't find remote ref codex/issue-54-ci-workflow",
+  "assessment_date": "2026-04-19",
+  "run_at_utc": "2026-04-19T08:02:24.4668879Z",
+  "sync_status": "synced",
+  "sync_notes": "Already up to date.\nFrom https://github.com/D-sorganization/Programmatic-PID\n * branch            main       -> FETCH_HEAD",
   "overall_grade": "C",
   "overall_score": 74,
   "category_grades": [
@@ -13,8 +13,8 @@
       "grade": "B",
       "score": 82,
       "evidence": [
-        "41 tracked first-party files",
-        "10 files under source-like directories"
+        "52 tracked first-party files",
+        "17 files under source-like directories"
       ],
       "notes": "Assesses source organization and boundary clarity from tracked first-party layout."
     },
@@ -47,15 +47,15 @@
       "score": 82,
       "evidence": [
         "src/programmatic_pid/control_loops.py",
-        "src/programmatic_pid/dxf_builder.py",
+        "src/programmatic_pid/dxf_geometry.py",
+        "src/programmatic_pid/dxf_layer.py",
+        "src/programmatic_pid/dxf_math.py",
+        "src/programmatic_pid/dxf_symbols.py",
         "src/programmatic_pid/generator.py",
         "src/programmatic_pid/notes.py",
         "src/programmatic_pid/sheet_rendering.py",
         "src/programmatic_pid/stream_router.py",
-        "src/programmatic_pid/validator.py",
-        "tests/test_dxf_builder.py",
-        "tests/test_pid_generation.py",
-        "tests/test_pid_integration.py"
+        "src/programmatic_pid/validator.py"
       ],
       "notes": "Design by Contract evidence includes validation, assertions, typed models, explicit raised errors, and invariants."
     },
@@ -67,14 +67,14 @@
       "evidence": [
         "tests/__init__.py",
         "tests/test_dxf_builder.py",
+        "tests/test_dxf_builder_helpers.py",
+        "tests/test_dxf_submodules.py",
         "tests/test_pid_generation.py",
-        "tests/test_pid_integration.py",
-        "tests/test_refactored_modules.py",
         "src/programmatic_pid/control_loops.py",
-        "src/programmatic_pid/dxf_builder.py",
-        "src/programmatic_pid/generator.py",
-        "src/programmatic_pid/notes.py",
-        "src/programmatic_pid/sheet_rendering.py"
+        "src/programmatic_pid/dxf_geometry.py",
+        "src/programmatic_pid/dxf_layer.py",
+        "src/programmatic_pid/dxf_math.py",
+        "src/programmatic_pid/dxf_symbols.py"
       ],
       "notes": "Reliability is graded from test presence plus explicit validation/error-handling signals."
     },
@@ -84,9 +84,7 @@
       "grade": "C",
       "score": 70,
       "evidence": [
-        "src/programmatic_pid/dxf_builder.py (651 lines)",
-        "tests/test_dxf_builder.py (621 lines)",
-        "tests/test_refactored_modules.py (587 lines)",
+        "src/programmatic_pid/dxf_builder.py (coarse avg 98 lines/definition)",
         "src/programmatic_pid/stream_router.py (coarse avg 115 lines/definition)"
       ],
       "notes": "Evaluates function size, script/module size, and single responsibility using static size signals."
@@ -99,6 +97,8 @@
       "evidence": [
         "tests/__init__.py",
         "tests/test_dxf_builder.py",
+        "tests/test_dxf_builder_helpers.py",
+        "tests/test_dxf_submodules.py",
         "tests/test_pid_generation.py",
         "tests/test_pid_integration.py",
         "tests/test_refactored_modules.py",
@@ -138,10 +138,10 @@
         "docs/assessments/A-N_Assessment_2026-04-09.md",
         "docs/assessments/A-N_Assessment_2026-04-10.md",
         "docs/assessments/A-N_Assessment_2026-04-11.md",
+        "docs/assessments/A-N_Assessment_2026-04-17.md",
+        "docs/assessments/assessment_summary.json",
         "docs/design_reviews/Deep_Dive_Model_Review.md",
-        "docs/design_reviews/grant_biochar_review.md",
-        "docs/development/.gitkeep",
-        "docs/development/Updated_Overview.md"
+        "docs/design_reviews/grant_biochar_review.md"
       ],
       "notes": "Checks docs, README, onboarding, and release documents."
     },
@@ -150,7 +150,9 @@
       "name": "Maintainability, DRY, and Duplication",
       "grade": "B",
       "score": 80,
-      "evidence": [],
+      "evidence": [
+        "scripts/check_ci_policy.py"
+      ],
       "notes": "DRY is assessed through duplicate filename clusters and TODO/FIXME density as static heuristics."
     },
     {
@@ -181,30 +183,19 @@
     }
   ],
   "key_risks": [
-    "Large modules/scripts reduce maintainability and SRP clarity."
+    "No high-confidence systemic risk surfaced by this static assessment."
   ],
   "recommendations": [
-    "Split the largest modules by responsibility and add characterization tests before refactoring."
+    "Keep assessment current and add deeper semantic review for Law of Demeter and contract coverage."
   ],
-  "issue_candidates": [
-    {
-      "title": "Split oversized modules by responsibility",
-      "severity": "medium",
-      "problem": "Oversized files found: src/programmatic_pid/dxf_builder.py (651 lines); tests/test_dxf_builder.py (621 lines); tests/test_refactored_modules.py (587 lines)",
-      "evidence": "Category F lists files over 500 lines or coarse long-definition signals.",
-      "impact": "Large modules obscure ownership, complicate review, and weaken SRP.",
-      "fix": "Add characterization tests, then split cohesive responsibilities into smaller modules.",
-      "acceptance": "Largest files are reduced or justified; extracted modules have focused tests.",
-      "refs": "SRP, function size, module size, maintainability"
-    }
-  ],
+  "issue_candidates": [],
   "coverage": {
-    "tracked_files": 41,
-    "code_files": 15,
-    "test_files": 6,
+    "tracked_files": 52,
+    "code_files": 24,
+    "test_files": 8,
     "ci_files": 1,
     "config_files": 2,
-    "docs_files": 13,
+    "docs_files": 15,
     "exclusions": "cache/build/vendor/virtualenv/temp/generated output directories excluded",
     "static_limits": "TDD workflow history and confirmed Law of Demeter semantics require deeper review."
   }
