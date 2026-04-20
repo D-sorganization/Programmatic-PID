@@ -1,9 +1,9 @@
 {
   "repository": "Programmatic-PID",
-  "assessment_date": "2026-04-19",
-  "run_at_utc": "2026-04-19T08:02:24.4668879Z",
+  "assessment_date": "2026-04-20",
+  "run_at_utc": "2026-04-20T08:03:08.8387406Z",
   "sync_status": "synced",
-  "sync_notes": "Already up to date.\nFrom https://github.com/D-sorganization/Programmatic-PID\n * branch            main       -> FETCH_HEAD",
+  "sync_notes": "Updating 2182698..8c3e470\nFast-forward\n ...factored_modules.py => test_refactored_core.py} | 132 +----------------\n tests/test_refactored_generator.py                 | 158 +++++++++++++++++++++\n 2 files changed, 163 insertions(+), 127 deletions(-)\n rename tests/{test_refactored_modules.py => test_refactored_core.py} (72%)\n create mode 100644 tests/test_refactored_generator.py\nFrom https://github.com/D-sorganization/Programmatic-PID\n * branch            main       -> FETCH_HEAD",
   "overall_grade": "C",
   "overall_score": 74,
   "category_grades": [
@@ -13,7 +13,7 @@
       "grade": "B",
       "score": 82,
       "evidence": [
-        "52 tracked first-party files",
+        "54 tracked first-party files",
         "17 files under source-like directories"
       ],
       "notes": "Assesses source organization and boundary clarity from tracked first-party layout."
@@ -85,6 +85,7 @@
       "score": 70,
       "evidence": [
         "src/programmatic_pid/dxf_builder.py (coarse avg 98 lines/definition)",
+        "src/programmatic_pid/notes.py (coarse avg 82 lines/definition)",
         "src/programmatic_pid/stream_router.py (coarse avg 115 lines/definition)"
       ],
       "notes": "Evaluates function size, script/module size, and single responsibility using static size signals."
@@ -101,7 +102,8 @@
         "tests/test_dxf_submodules.py",
         "tests/test_pid_generation.py",
         "tests/test_pid_integration.py",
-        "tests/test_refactored_modules.py",
+        "tests/test_refactored_core.py",
+        "tests/test_refactored_generator.py",
         "tests/test_stream_router.py"
       ],
       "notes": "TDD history cannot be confirmed statically; grade reflects committed automated test posture."
@@ -139,9 +141,9 @@
         "docs/assessments/A-N_Assessment_2026-04-10.md",
         "docs/assessments/A-N_Assessment_2026-04-11.md",
         "docs/assessments/A-N_Assessment_2026-04-17.md",
+        "docs/assessments/A-N_Assessment_2026-04-19.md",
         "docs/assessments/assessment_summary.json",
-        "docs/design_reviews/Deep_Dive_Model_Review.md",
-        "docs/design_reviews/grant_biochar_review.md"
+        "docs/design_reviews/Deep_Dive_Model_Review.md"
       ],
       "notes": "Checks docs, README, onboarding, and release documents."
     },
@@ -190,12 +192,12 @@
   ],
   "issue_candidates": [],
   "coverage": {
-    "tracked_files": 52,
-    "code_files": 24,
-    "test_files": 8,
+    "tracked_files": 54,
+    "code_files": 25,
+    "test_files": 9,
     "ci_files": 1,
     "config_files": 2,
-    "docs_files": 15,
+    "docs_files": 16,
     "exclusions": "cache/build/vendor/virtualenv/temp/generated output directories excluded",
     "static_limits": "TDD workflow history and confirmed Law of Demeter semantics require deeper review."
   }
