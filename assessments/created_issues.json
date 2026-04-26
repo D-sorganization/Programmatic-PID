@@ -1,0 +1,67 @@
+[
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/73",
+    "title": "[P1] [A] Missing LICENSE file",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/74",
+    "title": "[P1] [A] Missing CHANGELOG.md",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/75",
+    "title": "[P0] [C] No lockfile for reproducible builds",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/76",
+    "title": "[P0] [C] No pytest.ini \u2014 incomplete test config",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/77",
+    "title": "[P1] [C] Low test coverage reporting",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/78",
+    "title": "[P1] [D] Broad except Exception in production code",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/79",
+    "title": "[P1] [E] No benchmark suite",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/80",
+    "title": "[P0] [G] No dependency lockfile",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/81",
+    "title": "[P0] [I] No .env.example",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/82",
+    "title": "[P1] [L] Minimal CI coverage (1 workflow)",
+    "priority": "P1"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/83",
+    "title": "[P0] [M] No CHANGELOG for releases",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/84",
+    "title": "[P0] [N] No LICENSE file",
+    "priority": "P0"
+  },
+  {
+    "url": "https://github.com/D-sorganization/Programmatic-PID/issues/85",
+    "title": "[P1] [O] AGENTS.md too minimal",
+    "priority": "P1"
+  }
+]
