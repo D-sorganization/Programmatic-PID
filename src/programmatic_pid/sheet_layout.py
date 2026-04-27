@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import ezdxf
 from ezdxf import new  # type: ignore[attr-defined]
 
 from programmatic_pid.dxf_builder import (
