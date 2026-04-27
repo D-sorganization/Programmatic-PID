@@ -7,7 +7,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-import ezdxf
 from ezdxf import new  # type: ignore[attr-defined]
 
 from programmatic_pid.control_loops import add_control_loops
