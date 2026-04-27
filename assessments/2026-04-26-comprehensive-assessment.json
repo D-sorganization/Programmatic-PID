@@ -1,0 +1,184 @@
+{
+  "repo": "Programmatic-PID",
+  "owner": "D-sorganization",
+  "branch": "main",
+  "head_sha": "92ec00ba62a12566d4be77f7f0b5649411e7529a",
+  "date": "2026-04-26",
+  "total_score": 64.1,
+  "grade": "C",
+  "criteria": {
+    "A": {
+      "name": "Project Organization",
+      "weight": 0.05,
+      "score": 80,
+      "weighted": 4.0,
+      "grade": "B"
+    },
+    "B": {
+      "name": "Documentation",
+      "weight": 0.08,
+      "score": 75,
+      "weighted": 6.0,
+      "grade": "B"
+    },
+    "C": {
+      "name": "Testing & Quality Assurance",
+      "weight": 0.12,
+      "score": 45,
+      "weighted": 5.4,
+      "grade": "D"
+    },
+    "D": {
+      "name": "Defensive Code & Error Handling",
+      "weight": 0.1,
+      "score": 70,
+      "weighted": 7.0,
+      "grade": "B"
+    },
+    "E": {
+      "name": "Performance & Efficiency",
+      "weight": 0.07,
+      "score": 25,
+      "weighted": 1.75,
+      "grade": "D"
+    },
+    "F": {
+      "name": "Code Quality & Maintainability",
+      "weight": 0.1,
+      "score": 75,
+      "weighted": 7.5,
+      "grade": "B"
+    },
+    "G": {
+      "name": "Dependency Management",
+      "weight": 0.08,
+      "score": 50,
+      "weighted": 4.0,
+      "grade": "C"
+    },
+    "H": {
+      "name": "Security Posture",
+      "weight": 0.1,
+      "score": 85,
+      "weighted": 8.5,
+      "grade": "A"
+    },
+    "I": {
+      "name": "Configuration & Environment",
+      "weight": 0.06,
+      "score": 35,
+      "weighted": 2.1,
+      "grade": "D"
+    },
+    "J": {
+      "name": "Observability & Monitoring",
+      "weight": 0.07,
+      "score": 70,
+      "weighted": 4.9,
+      "grade": "B"
+    },
+    "K": {
+      "name": "Maintainability & Technical Debt",
+      "weight": 0.07,
+      "score": 75,
+      "weighted": 5.25,
+      "grade": "B"
+    },
+    "L": {
+      "name": "CI/CD & Automation",
+      "weight": 0.08,
+      "score": 55,
+      "weighted": 4.4,
+      "grade": "C"
+    },
+    "M": {
+      "name": "Deployment & Release",
+      "weight": 0.05,
+      "score": 35,
+      "weighted": 1.75,
+      "grade": "D"
+    },
+    "N": {
+      "name": "Legal & Compliance",
+      "weight": 0.04,
+      "score": 0,
+      "weighted": 0.0,
+      "grade": "F"
+    },
+    "O": {
+      "name": "Agentic Usability",
+      "weight": 0.03,
+      "score": 50,
+      "weighted": 1.5,
+      "grade": "C"
+    }
+  },
+  "findings": [
+    {
+      "criterion": "A",
+      "priority": "P1",
+      "title": "Missing LICENSE file"
+    },
+    {
+      "criterion": "A",
+      "priority": "P1",
+      "title": "Missing CHANGELOG.md"
+    },
+    {
+      "criterion": "C",
+      "priority": "P0",
+      "title": "No lockfile for reproducible builds"
+    },
+    {
+      "criterion": "C",
+      "priority": "P0",
+      "title": "No pytest.ini \u2014 incomplete test config"
+    },
+    {
+      "criterion": "C",
+      "priority": "P1",
+      "title": "Low test coverage reporting"
+    },
+    {
+      "criterion": "D",
+      "priority": "P1",
+      "title": "Broad except Exception in production code"
+    },
+    {
+      "criterion": "E",
+      "priority": "P1",
+      "title": "No benchmark suite"
+    },
+    {
+      "criterion": "G",
+      "priority": "P0",
+      "title": "No dependency lockfile"
+    },
+    {
+      "criterion": "I",
+      "priority": "P0",
+      "title": "No .env.example"
+    },
+    {
+      "criterion": "L",
+      "priority": "P1",
+      "title": "Minimal CI coverage (1 workflow)"
+    },
+    {
+      "criterion": "M",
+      "priority": "P0",
+      "title": "No CHANGELOG for releases"
+    },
+    {
+      "criterion": "N",
+      "priority": "P0",
+      "title": "No LICENSE file"
+    },
+    {
+      "criterion": "O",
+      "priority": "P1",
+      "title": "AGENTS.md too minimal"
+    }
+  ],
+  "overall_score": 64.0
+}
