@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import ezdxf
 from ezdxf import DXFValueError  # type: ignore[attr-defined]
 
 
