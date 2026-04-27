@@ -7,7 +7,6 @@ import re
 import sys
 from pathlib import Path
 
-
 EXPECTED_TOOL_REVS = {
     "Black": r"rev:\s*25\.12\.0",
     "Ruff": r"rev:\s*v0\.14\.10",
@@ -17,11 +16,7 @@ EXPECTED_TOOL_REVS = {
 
 def check_tool_versions() -> int:
     config = Path(".pre-commit-config.yaml").read_text(encoding="utf-8")
-    missing = [
-        tool
-        for tool, pattern in EXPECTED_TOOL_REVS.items()
-        if re.search(pattern, config) is None
-    ]
+    missing = [tool for tool, pattern in EXPECTED_TOOL_REVS.items() if re.search(pattern, config) is None]
     if missing:
         for tool in missing:
             print(
