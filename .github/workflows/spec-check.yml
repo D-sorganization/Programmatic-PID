@@ -1,0 +1,49 @@
+# spec-check.yml — Specification Freshness Enforcement
+name: Spec Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  spec-freshness:
+    name: Verify SPEC.md freshness
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'spec-exempt') }}
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if source files changed without SPEC.md update
+        id: check
+        shell: bash
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          SOURCE_CHANGED=false
+          SPEC_CHANGED=false
+          while IFS= read -r file; do
+            if [[ "$file" == "SPEC.md" ]]; then SPEC_CHANGED=true; fi
+            if [[ "$file" == src/* ]] || [[ "$file" == tests/* ]] || [[ "$file" == pyproject.toml ]] || [[ "$file" == requirements.txt ]] || [[ "$file" == package.json ]]; then
+              SOURCE_CHANGED=true
+            fi
+          done <<< "$CHANGED_FILES"
+          if [[ "$SOURCE_CHANGED" == "true" ]] && [[ "$SPEC_CHANGED" == "false" ]]; then
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail if spec is stale
+        if: steps.check.outputs.needs_update == 'true'
+        shell: bash
+        run: |
+          echo "::error::Source files changed but SPEC.md was not updated."
+          exit 1
