@@ -20,6 +20,8 @@
 - `examples/biochar/` contains example specifications used for manual and automated verification.
 - `output/` is the local generation target directory for drawings and previews.
 - `docs/` holds engineering notes and related documentation.
+- `requirements.txt` lists runtime dependencies (install with `pip install -r requirements.txt`).
+- `dev-requirements.txt` lists development dependencies (testing, linting, type checking).
 
 ## Runtime Responsibilities
 
