@@ -112,7 +112,7 @@ def export_svg_from_dxf(
         }
         page = layout.Page(page_width, page_height, units=unit_map.get(unit_name, layout.Units.mm))
         Path(svg_path).write_text(backend.get_string(page), encoding="utf-8")
-    except Exception as exc:
+    except (ImportError, OSError, ValueError, TypeError) as exc:
         logger.error("DXF created, but SVG export failed: %s", exc)
 
 
