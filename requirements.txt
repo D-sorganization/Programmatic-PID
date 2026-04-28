@@ -1,14 +1,6 @@
-# P&ID Generation Dependencies
+# P&ID Generation Dependencies — runtime only
 # Core drawing engine
 ezdxf[draw]>=1.4.3
 
 # YAML spec parsing
 PyYAML>=6.0
-
-# Testing & Quality Assurance
-pytest>=8.2.0
-pytest-cov>=5.0.0
-pytest-benchmark>=4.0.0
-ruff
-mypy
-types-PyYAML

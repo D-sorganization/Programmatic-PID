@@ -21,8 +21,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install quality tools
-        run: pip install --force-reinstall ruff==0.14.10 black==25.12.0 mypy==1.13.0 bandit==1.7.7
+      - name: Install dev dependencies
+        run: pip install --force-reinstall --ignore-installed -r dev-requirements.txt
 
       - name: Check tool version consistency
         run: python scripts/check_ci_policy.py tool-versions
@@ -37,7 +37,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Type check
-        run: echo "mypy skipped - baseline code not yet fully typed (planned improvement)"
+        run: mypy src/ tests/ --ignore-missing-imports --show-error-codes
         continue-on-error: true
 
       - name: Security scan
@@ -56,8 +56,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pip-audit
-        run: pip install pip-audit
+      - name: Install dev dependencies
+        run: pip install --force-reinstall --ignore-installed -r dev-requirements.txt
 
       - name: Audit python dependencies
         run: pip-audit -r requirements.txt --progress-spinner=off
@@ -81,6 +81,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install --force-reinstall --ignore-installed -r dev-requirements.txt
           pip install -e .
 
       - name: Run tests

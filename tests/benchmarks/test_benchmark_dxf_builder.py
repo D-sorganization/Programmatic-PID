@@ -11,6 +11,7 @@ from programmatic_pid.dxf_builder import add_equipment
 from programmatic_pid.dxf_geometry import equipment_center, equipment_dims
 from programmatic_pid.dxf_layer import ensure_layer
 from programmatic_pid.dxf_symbols import add_box, draw_equipment_symbol
+from programmatic_pid.sheet_rendering import generate_process_sheet
 
 
 @pytest.fixture
@@ -84,3 +85,15 @@ def test_benchmark_draw_equipment_symbol(benchmark, doc):
         draw_equipment_symbol(doc.modelspace(), eq, "0")
 
     benchmark(draw_one)
+
+
+@pytest.mark.benchmark
+def test_benchmark_biochar_process_sheet_render(benchmark, tmp_path):
+    """Benchmark a full process-sheet render from the biochar example spec."""
+    spec_path = "examples/biochar/biochar_pid_spec.yml"
+    out_path = tmp_path / "biochar_pid.dxf"
+
+    def render_sheet():
+        generate_process_sheet(spec_path, out_path, svg_path=None)
+
+    benchmark(render_sheet)

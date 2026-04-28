@@ -20,6 +20,8 @@
 - `examples/biochar/` contains example specifications used for manual and automated verification.
 - `output/` is the local generation target directory for drawings and previews.
 - `docs/` holds engineering notes and related documentation.
+- `requirements.txt` lists runtime dependencies (install with `pip install -r requirements.txt`).
+- `dev-requirements.txt` lists development dependencies (testing, linting, type checking).
 
 ## Runtime Responsibilities
 
@@ -36,7 +38,7 @@
 - `control_loops.py` draws control-loop relationships and reference routing.
 - `notes.py` renders notes, mass balance values, and sheet annotations.
 - `sheet_layout.py` owns shared layer resolution plus the controls/interlocks sheet layout and summary rendering helpers.
-- `sheet_rendering.py` owns sheet-level rendering, DXF/SVG persistence, and the process-sheet drawing helpers that `generator.py` re-exports for backward compatibility.
+- `sheet_rendering.py` owns sheet-level rendering, DXF/SVG persistence, and the process-sheet drawing helpers that `generator.py` re-exports for backward compatibility. SVG export failure is caught with specific exception types (`ImportError`, `OSError`, `ValueError`, `TypeError`) and logged so the DXF is never lost.
 
 ## Configuration Model
 
