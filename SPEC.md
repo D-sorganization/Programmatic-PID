@@ -1,6 +1,6 @@
 # Programmatic-PID Specification
 
-**Version:** 0.1.1 — 2026-04-16
+**Version:** 0.1.2 — 2026-04-27
 
 ## Purpose
 
@@ -38,7 +38,7 @@
 - `control_loops.py` draws control-loop relationships and reference routing.
 - `notes.py` renders notes, mass balance values, and sheet annotations.
 - `sheet_layout.py` owns shared layer resolution plus the controls/interlocks sheet layout and summary rendering helpers.
-- `sheet_rendering.py` owns sheet-level rendering, DXF/SVG persistence, and the process-sheet drawing helpers that `generator.py` re-exports for backward compatibility.
+- `sheet_rendering.py` owns sheet-level rendering, DXF/SVG persistence, and the process-sheet drawing helpers that `generator.py` re-exports for backward compatibility. SVG export failure is caught with specific exception types (`ImportError`, `OSError`, `ValueError`, `TypeError`) and logged so the DXF is never lost.
 
 ## Configuration Model
 
