@@ -6,9 +6,9 @@ Run with: pytest tests/benchmarks/ -v --benchmark-only
 
 import pytest
 
-from programmatic_pid.dxf_builder import DXFBuilder, add_equipment, add_instrument
-from programmatic_pid.dxf_geometry import equipment_dims, equipment_center
-from programmatic_pid.dxf_layer import ensure_layer, ensure_layers
+from programmatic_pid.dxf_builder import DXFBuilder, add_equipment
+from programmatic_pid.dxf_geometry import equipment_center, equipment_dims
+from programmatic_pid.dxf_layer import ensure_layer
 from programmatic_pid.dxf_symbols import add_box, draw_equipment_symbol
 
 
