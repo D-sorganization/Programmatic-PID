@@ -1,6 +1,6 @@
 # Programmatic-PID Specification
 
-**Version:** 0.1.2 — 2026-04-27
+**Version:** 0.1.2 — 2026-04-28
 
 ## Purpose
 
@@ -65,6 +65,7 @@ The package also supports layout profiles such as `review`, `presentation`, and 
 
 - Unit tests cover validation, geometry helpers, routing, notes, and orchestration behavior.
 - Integration tests exercise end-to-end generation from example specs.
+- Benchmarks under `tests/benchmarks/` use `pytest-benchmark` to track core DXF helper performance.
 - The repo expects packaging-compatible imports from `src/` rather than ad hoc path manipulation.
 
 ## Maintenance Notes

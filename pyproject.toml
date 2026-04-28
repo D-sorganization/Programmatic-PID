@@ -16,6 +16,11 @@ dependencies = [
     "PyYAML>=6.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest-benchmark>=4.0.0",
+]
+
 [project.scripts]
 generate-pid = "programmatic_pid.generator:main"
 

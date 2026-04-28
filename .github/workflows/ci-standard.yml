@@ -21,6 +21,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Create isolated Python environment
+        run: |
+          python -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+
       - name: Install dev dependencies
         run: pip install --force-reinstall --ignore-installed -r dev-requirements.txt
 
@@ -56,6 +62,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Create isolated Python environment
+        run: |
+          python -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+
       - name: Install dev dependencies
         run: pip install --force-reinstall --ignore-installed -r dev-requirements.txt
 
@@ -77,6 +89,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Create isolated Python environment
+        run: |
+          python -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: |
