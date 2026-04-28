@@ -4,29 +4,30 @@ Uses pytest-benchmark for repeatable performance measurements.
 Run with: pytest tests/benchmarks/ -v --benchmark-only
 """
 
+import ezdxf
 import pytest
 
-from programmatic_pid.dxf_builder import DXFBuilder, add_equipment
+from programmatic_pid.dxf_builder import add_equipment
 from programmatic_pid.dxf_geometry import equipment_center, equipment_dims
 from programmatic_pid.dxf_layer import ensure_layer
 from programmatic_pid.dxf_symbols import add_box, draw_equipment_symbol
 
 
 @pytest.fixture
-def builder():
-    return DXFBuilder()
+def doc():
+    return ezdxf.new()
 
 
 @pytest.mark.benchmark
-def test_benchmark_builder_init(benchmark):
-    """Benchmark DXFBuilder instantiation."""
-    benchmark(DXFBuilder)
+def test_benchmark_document_init(benchmark):
+    """Benchmark DXF document creation."""
+    benchmark(ezdxf.new)
 
 
 @pytest.mark.benchmark
-def test_benchmark_add_box(benchmark, builder):
+def test_benchmark_add_box(benchmark, doc):
     """Benchmark adding a box symbol."""
-    benchmark(add_box, builder.doc.modelspace(), 0, 0, 10, 10, "0")
+    benchmark(add_box, doc.modelspace(), 0, 0, 10, 10, "0")
 
 
 @pytest.mark.benchmark
@@ -44,13 +45,13 @@ def test_benchmark_equipment_center(benchmark):
 
 
 @pytest.mark.benchmark
-def test_benchmark_ensure_layer(benchmark, builder):
+def test_benchmark_ensure_layer(benchmark, doc):
     """Benchmark layer creation."""
-    benchmark(ensure_layer, builder.doc, "PIPING", 7, "CONTINUOUS")
+    benchmark(ensure_layer, doc, "PIPING", 7, "CONTINUOUS")
 
 
 @pytest.mark.benchmark
-def test_benchmark_add_equipment(benchmark, builder):
+def test_benchmark_add_equipment(benchmark, doc):
     """Benchmark adding equipment to the drawing."""
 
     def add_one():
@@ -62,13 +63,13 @@ def test_benchmark_add_equipment(benchmark, builder):
             "height": 3.0,
             "type": "vessel",
         }
-        add_equipment(builder.doc.modelspace(), eq, "0")
+        add_equipment(doc.modelspace(), eq, 2.0, "TEXT", "NOTES")
 
     benchmark(add_one)
 
 
 @pytest.mark.benchmark
-def test_benchmark_draw_equipment_symbol(benchmark, builder):
+def test_benchmark_draw_equipment_symbol(benchmark, doc):
     """Benchmark drawing an equipment symbol."""
 
     def draw_one():
@@ -80,6 +81,6 @@ def test_benchmark_draw_equipment_symbol(benchmark, builder):
             "height": 3.0,
             "type": "vessel",
         }
-        draw_equipment_symbol(builder.doc.modelspace(), eq, "0")
+        draw_equipment_symbol(doc.modelspace(), eq, "0")
 
     benchmark(draw_one)
