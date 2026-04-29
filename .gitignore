@@ -43,3 +43,7 @@ Thumbs.db
 
 # Pre-commit
 .pre-commit-cache/
+
+# GAAI runtime state (local only)
+.gaai/project/contexts/backlog/.delivery-locks/
+.gaai/project/contexts/backlog/.delivery-logs/
