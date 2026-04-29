@@ -1,0 +1,117 @@
+name: Agent Redundant Issue Closer
+
+# Closes redundant issues across the multi-agent fleet by priority.
+#
+# When two or more open issues have substantially similar titles/descriptions
+# (fuzzy match), the issue from the highest-priority agent wins and the rest
+# are closed with a deferral comment linking to the winner.
+# ``user``-authored issues are never closed by automation.
+#
+# Priority order (same as PR closer):
+#   user > maxwell-daemon > claude > codex > jules > local > gaai
+#
+# Triggers:
+# - Every time an issue is opened or reopened
+# - Schedule every 6 hours (backstop)
+# - Manual dispatch for ad-hoc runs
+#
+# Fail-open: a failure of this workflow does not halt agent progress.
+# It only means redundancy cleanup is deferred to the next run.
+
+on:
+  issues:
+    types: [opened, reopened]
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Detect only, don't close"
+        required: false
+        default: "false"
+        type: choice
+        options: ["true", "false"]
+      agent_filter:
+        description: "Comma-separated agent ids whose issues are eligible to close (default: all non-user)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: jules-redundant-issue-closer-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  close-redundant:
+    runs-on: d-sorg-fleet
+    timeout-minutes: 10
+    steps:
+      - name: Generate Jules app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.JULES_APP_ID }}
+          private-key: ${{ secrets.JULES_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout Repository_Management (for scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: D-sorganization/Repository_Management
+          ref: main
+          path: .jules-tools
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Close redundant agent issues
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          DRY_RUN_INPUT: ${{ inputs.dry_run }}
+          AGENT_FILTER: ${{ inputs.agent_filter }}
+          ISSUE_ACTION: ${{ github.event.action || '' }}
+          EVENT_ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+        run: |
+          set -uo pipefail
+          DRY_FLAG=""
+          if [ "$DRY_RUN_INPUT" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          fi
+          FILTER_FLAG=""
+          if [ -n "$AGENT_FILTER" ]; then
+            FILTER_FLAG="--agent-filter $AGENT_FILTER"
+          fi
+          BACKSTOP_FLAG=""
+          if [ -n "$EVENT_ISSUE_NUMBER" ]; then
+            BACKSTOP_FLAG="--backstop-issue $EVENT_ISSUE_NUMBER"
+          fi
+          # Fail-open: never let a coordination glitch fail the job.
+          PYTHONPATH=".jules-tools" python -m scripts.close_redundant_agent_issues \
+            --repo "$REPO_NAME" \
+            $DRY_FLAG \
+            $FILTER_FLAG \
+            $BACKSTOP_FLAG || {
+              echo "::warning::redundant-issue closer exited non-zero; continuing"
+              exit 0
+            }
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Agent Redundant Issue Closer"
+            echo ""
+            echo "- **Repo:** ${{ github.repository }}"
+            echo "- **Trigger:** ${{ github.event_name }}"
+            echo "- **Dry run:** ${{ inputs.dry_run || 'false' }}"
+            echo "- **Agent filter:** ${{ inputs.agent_filter || 'all non-user' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
