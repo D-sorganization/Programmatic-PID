@@ -82,3 +82,9 @@ The package also supports layout profiles such as `review`, `presentation`, and 
 - All public names from the `dxf_*` sub-modules are re-exported by `dxf_builder.py`; callers should continue to import from `programmatic_pid.dxf_builder`.
 - Documentation should remain consistent with the real package layout and public CLI behavior.
 - If a future change moves responsibility between modules, update this spec in the same change.
+
+## Change Log
+
+| Date | PR / Issue | Summary |
+| --- | --- | --- |
+| 2026-09-10 | #1610 | Add maintainable Mermaid C4 architecture map contract and CI validation. |

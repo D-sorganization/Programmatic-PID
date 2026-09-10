@@ -45,6 +45,10 @@ Programmatic-PID/
 └── .github/workflows/ci-standard.yml
 ```
 
+## Architecture
+
+- **C4 Architecture Map**: See [docs/architecture/C4.md](docs/architecture/C4.md) for system context, container boundaries, and feature mappings.
+
 ## Quick Start
 
 It is recommended to use `pip` to install the package in editable mode:
