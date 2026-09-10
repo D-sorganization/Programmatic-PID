@@ -17,6 +17,10 @@ This repository generates P&ID drawings from YAML specifications. The maintained
 - Use the repo-standard test and lint commands for code changes: `pytest`, `ruff`, `black`, and `mypy` when relevant to the task.
 - For documentation-only changes, run a lightweight repo sanity check and confirm the docs still match the current layout.
 
+## Architecture
+
+- **C4 Architecture Map**: The maintainable visual and tabular architecture map is documented in `docs/architecture/C4.md` and enforced via `scripts/architecture_map_contract.py` and GitHub Actions.
+
 ## Documentation
 
 - Keep `SPEC.md` truthful. If the implementation changes, update the spec in the same workstream.
